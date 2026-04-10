@@ -1,0 +1,529 @@
+2026-04-10 00:04:13,522 - INFO - workflow_unified main() start
+2026-04-10 00:04:13,883 - INFO - 读取项目 Excel 完成，共 1 个有效项目
+2026-04-10 00:04:14,026 - INFO - 读取 CVE Excel 完成，共 2017 条记录
+2026-04-10 00:04:14,027 - INFO - 写出调试输出 已加载项目: debug_output\projects_loaded.xlsx (1 rows)
+2026-04-10 00:04:14,050 - INFO - 写出调试输出 已加载CVE数据: debug_output\cve_loaded.xlsx (2017 rows)
+2026-04-10 00:04:14,161 - INFO - 开始执行 CodeWiki: LlamaFactory
+Cloning into 'target_repo\LlamaFactory'...
+[INFO] Cloning repo to target_repo\LlamaFactory ...
+[INFO] Cleaning repo...
+[CLEANED] target_repo\LlamaFactory\.pre-commit-config.yaml
+[CLEANED] target_repo\LlamaFactory\README.md
+[CLEANED] target_repo\LlamaFactory\README_zh.md
+[CLEANED] target_repo\LlamaFactory\.ai\CLAUDE.md
+[CLEANED] target_repo\LlamaFactory\.github\CODE_OF_CONDUCT.md
+[CLEANED] target_repo\LlamaFactory\.github\CONTRIBUTING.md
+[CLEANED] target_repo\LlamaFactory\.github\copilot-instructions.md
+[CLEANED] target_repo\LlamaFactory\.github\instructions-v0.md
+[CLEANED] target_repo\LlamaFactory\.github\instructions-v1.md
+[CLEANED] target_repo\LlamaFactory\.github\PULL_REQUEST_TEMPLATE.md
+[CLEANED] target_repo\LlamaFactory\.github\SECURITY.md
+[CLEANED] target_repo\LlamaFactory\.github\ISSUE_TEMPLATE\1-bug-report.yml
+[CLEANED] target_repo\LlamaFactory\.github\ISSUE_TEMPLATE\2-feature-request.yml
+[CLEANED] target_repo\LlamaFactory\.github\ISSUE_TEMPLATE\config.yml
+[CLEANED] target_repo\LlamaFactory\.github\workflows\docker.yml
+[CLEANED] target_repo\LlamaFactory\.github\workflows\docs.yml
+[CLEANED] target_repo\LlamaFactory\.github\workflows\label_issue.yml
+[CLEANED] target_repo\LlamaFactory\.github\workflows\publish.yml
+[CLEANED] target_repo\LlamaFactory\.github\workflows\tests.yml
+[CLEANED] target_repo\LlamaFactory\.github\workflows\tests_cuda.yml
+[CLEANED] target_repo\LlamaFactory\.github\workflows\tests_npu.yml
+[CLEANED] target_repo\LlamaFactory\data\alpaca_en_demo.json
+[CLEANED] target_repo\LlamaFactory\data\alpaca_zh_demo.json
+[CLEANED] target_repo\LlamaFactory\data\dataset_info.json
+[CLEANED] target_repo\LlamaFactory\data\dpo_en_demo.json
+[CLEANED] target_repo\LlamaFactory\data\dpo_zh_demo.json
+[CLEANED] target_repo\LlamaFactory\data\glaive_toolcall_en_demo.json
+[CLEANED] target_repo\LlamaFactory\data\glaive_toolcall_zh_demo.json
+[CLEANED] target_repo\LlamaFactory\data\identity.json
+[CLEANED] target_repo\LlamaFactory\data\kto_en_demo.json
+[CLEANED] target_repo\LlamaFactory\data\mllm_audio_demo.json
+[CLEANED] target_repo\LlamaFactory\data\mllm_demo.json
+[CLEANED] target_repo\LlamaFactory\data\mllm_video_audio_demo.json
+[CLEANED] target_repo\LlamaFactory\data\mllm_video_demo.json
+[CLEANED] target_repo\LlamaFactory\data\README.md
+[CLEANED] target_repo\LlamaFactory\data\README_zh.md
+[CLEANED] target_repo\LlamaFactory\data\v1_dpo_demo.yaml
+[CLEANED] target_repo\LlamaFactory\data\v1_sft_demo.yaml
+[CLEANED] target_repo\LlamaFactory\data\wiki_demo.txt
+[CLEANED] target_repo\LlamaFactory\docker\docker-cuda\docker-compose.yml
+[CLEANED] target_repo\LlamaFactory\docker\docker-cuda\README.md
+[CLEANED] target_repo\LlamaFactory\docker\docker-npu\docker-compose.yml
+[CLEANED] target_repo\LlamaFactory\docker\docker-rocm\docker-compose.yml
+[CLEANED] target_repo\LlamaFactory\docs\conf.py
+[CLEANED] target_repo\LlamaFactory\docs\requirements.txt
+[CLEANED] target_repo\LlamaFactory\docs\en\conf.py
+[CLEANED] target_repo\LlamaFactory\docs\en\getting-started.md
+[CLEANED] target_repo\LlamaFactory\docs\en\installation.md
+[CLEANED] target_repo\LlamaFactory\docs\en\llamaboard-web-ui.md
+[CLEANED] target_repo\LlamaFactory\docs\en\advanced\custom-kernels\custom-kernels.md
+[CLEANED] target_repo\LlamaFactory\docs\en\advanced\custom-kernels\fused-operators.md
+[CLEANED] target_repo\LlamaFactory\docs\en\advanced\custom-kernels\triton.md
+[CLEANED] target_repo\LlamaFactory\docs\en\advanced\distributed\deepspeed.md
+[CLEANED] target_repo\LlamaFactory\docs\en\advanced\distributed\fsdp.md
+[CLEANED] target_repo\LlamaFactory\docs\en\advanced\distributed\parallel-dp-tp-ep-sp-cp.md
+[CLEANED] target_repo\LlamaFactory\docs\en\advanced\lora-and-quantization\lora.md
+[CLEANED] target_repo\LlamaFactory\docs\en\advanced\lora-and-quantization\quantization.md
+[CLEANED] target_repo\LlamaFactory\docs\en\data-preparation\data-processing.md
+[CLEANED] target_repo\LlamaFactory\docs\en\dev-guide\core\data-engine.md
+[CLEANED] target_repo\LlamaFactory\docs\en\dev-guide\core\model-engine.md
+[CLEANED] target_repo\LlamaFactory\docs\en\dev-guide\core\trainer.md
+[CLEANED] target_repo\LlamaFactory\docs\en\dev-guide\plugins\data-plugins.md
+[CLEANED] target_repo\LlamaFactory\docs\en\dev-guide\plugins\model-plugins\initialization.md
+[CLEANED] target_repo\LlamaFactory\docs\en\dev-guide\plugins\model-plugins\kernels.md
+[CLEANED] target_repo\LlamaFactory\docs\en\dev-guide\plugins\model-plugins\rendering.md
+[CLEANED] target_repo\LlamaFactory\docs\en\hyperparameters\data-argument.md
+[CLEANED] target_repo\LlamaFactory\docs\en\hyperparameters\model-argument.md
+[CLEANED] target_repo\LlamaFactory\docs\en\hyperparameters\sample-argument.md
+[CLEANED] target_repo\LlamaFactory\docs\en\hyperparameters\training-argument.md
+[CLEANED] target_repo\LlamaFactory\docs\en\inference\deploy.md
+[CLEANED] target_repo\LlamaFactory\docs\en\training\dpo.md
+[CLEANED] target_repo\LlamaFactory\docs\en\training\sft.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\conf.py
+[CLEANED] target_repo\LlamaFactory\docs\zh\getting-started.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\installation.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\llamaboard-web-ui.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\advanced\custom-kernels\custom-kernels.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\advanced\custom-kernels\fused-operators.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\advanced\custom-kernels\triton.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\advanced\distributed\deepspeed.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\advanced\distributed\fsdp.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\advanced\distributed\parallel-dp-tp-ep-sp-cp.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\advanced\lora-and-quantization\lora.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\advanced\lora-and-quantization\quantization.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\data-preparation\data-processing.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\dev-guide\core\data-engine.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\dev-guide\core\model-engine.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\dev-guide\core\trainer.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\dev-guide\plugins\data-plugins.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\dev-guide\plugins\model-plugins\initialization.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\dev-guide\plugins\model-plugins\kernels.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\dev-guide\plugins\model-plugins\rendering.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\hyperparameters\data-argument.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\hyperparameters\model-argument.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\hyperparameters\sample-argument.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\hyperparameters\training-argument.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\inference\deploy.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\training\dpo.md
+[CLEANED] target_repo\LlamaFactory\docs\zh\training\sft.md
+[CLEANED] target_repo\LlamaFactory\examples\README.md
+[CLEANED] target_repo\LlamaFactory\examples\README_zh.md
+[CLEANED] target_repo\LlamaFactory\examples\accelerate\fsdp2_config.yaml
+[CLEANED] target_repo\LlamaFactory\examples\accelerate\fsdp_config.yaml
+[CLEANED] target_repo\LlamaFactory\examples\accelerate\fsdp_config_multiple_nodes.yaml
+[CLEANED] target_repo\LlamaFactory\examples\accelerate\fsdp_config_offload.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ascend\qwen3moe_full_sft_fsdp.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ascend\qwen3vlmoe_full_sft_fsdp2.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ascend\qwen3vlmoe_lora_sft_fsdp.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ascend\qwen3_full_sft_fsdp2.yaml
+[CLEANED] target_repo\LlamaFactory\examples\deepspeed\ds_z0_config.json
+[CLEANED] target_repo\LlamaFactory\examples\deepspeed\ds_z2_autotp_config.json
+[CLEANED] target_repo\LlamaFactory\examples\deepspeed\ds_z2_config.json
+[CLEANED] target_repo\LlamaFactory\examples\deepspeed\ds_z2_offload_config.json
+[CLEANED] target_repo\LlamaFactory\examples\deepspeed\ds_z3_config.json
+[CLEANED] target_repo\LlamaFactory\examples\deepspeed\ds_z3_fp8_config.json
+[CLEANED] target_repo\LlamaFactory\examples\deepspeed\ds_z3_offload_config.json
+[CLEANED] target_repo\LlamaFactory\examples\extras\adam_mini\qwen2_full_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\apollo\llama3_full_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\asft\llama2_full_asft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\asft\qwen2_full_asft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\badam\llama3_full_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\dft\qwen2_full_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\eaft\qwen25_05b_eaft_full.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\fp8\llama3_fp8_deepspeed_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\fp8\llama3_fp8_fsdp_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\fsdp_qlora\llama3_lora_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\galore\llama3_full_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\llama_pro\llama3_freeze_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\loraplus\llama3_lora_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\mod\llama3_full_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\multi_tokens\tokens_cfg.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\muon\qwen2_full_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\nlg_eval\llama3_lora_predict.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\oft\llama3_oft_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\oft\qwen2_5vl_oft_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\pissa\llama3_lora_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\qoft\llama3_oft_sft_awq.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\qoft\llama3_oft_sft_bnb_npu.yaml
+[CLEANED] target_repo\LlamaFactory\examples\extras\qoft\llama3_oft_sft_gptq.yaml
+[CLEANED] target_repo\LlamaFactory\examples\inference\qwen3.yaml
+[CLEANED] target_repo\LlamaFactory\examples\inference\qwen3vl.yaml
+[CLEANED] target_repo\LlamaFactory\examples\inference\qwen3_full_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\inference\qwen3_lora_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\infer_lora\deepseek2_lora_sft_kt.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\infer_lora\deepseek3_kt.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\infer_lora\deepseek3_lora_sft_kt.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\infer_lora\qwen3moe_lora_sft_kt.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\kt_optimize_rules\DeepSeek-V2-Chat-sft-amx.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\kt_optimize_rules\DeepSeek-V2-Chat.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\kt_optimize_rules\DeepSeek-V2-Lite-Chat-sft-amx-multi-gpu.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\kt_optimize_rules\DeepSeek-V2-Lite-Chat-sft-amx.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\kt_optimize_rules\DeepSeek-V2-Lite-Chat-sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\kt_optimize_rules\DeepSeek-V2-Lite-Chat.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\kt_optimize_rules\DeepSeek-V3-Chat-amx.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\kt_optimize_rules\DeepSeek-V3-Chat-sft-amx-multi-gpu-4.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\kt_optimize_rules\DeepSeek-V3-Chat-sft-amx-multi-gpu.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\kt_optimize_rules\DeepSeek-V3-Chat-sft-amx.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\kt_optimize_rules\Qwen3Moe-sft-amx.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\train_lora\deepseek2_lora_sft_kt.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\train_lora\deepseek3_lora_sft_kt.yaml
+[CLEANED] target_repo\LlamaFactory\examples\ktransformers\train_lora\qwen3moe_lora_sft_kt.yaml
+[CLEANED] target_repo\LlamaFactory\examples\megatron\qwen2_vl_full.yaml
+[CLEANED] target_repo\LlamaFactory\examples\megatron\qwen3_moe_full.yaml
+[CLEANED] target_repo\LlamaFactory\examples\merge_lora\qwen3vl_lora_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\merge_lora\qwen3_full_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\merge_lora\qwen3_gptq.yaml
+[CLEANED] target_repo\LlamaFactory\examples\merge_lora\qwen3_lora_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\train_full\qwen3vl_full_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\train_full\qwen3_full_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\train_lora\qwen3vl_lora_dpo.yaml
+[CLEANED] target_repo\LlamaFactory\examples\train_lora\qwen3vl_lora_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\train_lora\qwen3_lora_dpo.yaml
+[CLEANED] target_repo\LlamaFactory\examples\train_lora\qwen3_lora_kto.yaml
+[CLEANED] target_repo\LlamaFactory\examples\train_lora\qwen3_lora_pretrain.yaml
+[CLEANED] target_repo\LlamaFactory\examples\train_lora\qwen3_lora_reward.yaml
+[CLEANED] target_repo\LlamaFactory\examples\train_lora\qwen3_lora_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\train_lora\qwen3_lora_sft_ds3.yaml
+[CLEANED] target_repo\LlamaFactory\examples\train_lora\qwen3_lora_sft_ray.yaml
+[CLEANED] target_repo\LlamaFactory\examples\train_lora\qwen3_preprocess.yaml
+[CLEANED] target_repo\LlamaFactory\examples\train_qlora\llama3_lora_sft_aqlm.yaml
+[CLEANED] target_repo\LlamaFactory\examples\train_qlora\llama3_lora_sft_awq.yaml
+[CLEANED] target_repo\LlamaFactory\examples\train_qlora\llama3_lora_sft_gptq.yaml
+[CLEANED] target_repo\LlamaFactory\examples\train_qlora\qwen3_lora_sft_bnb_npu.yaml
+[CLEANED] target_repo\LlamaFactory\examples\train_qlora\qwen3_lora_sft_otfq.yaml
+[CLEANED] target_repo\LlamaFactory\examples\v1\train_freeze\train_freeze_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\v1\train_full\train_full_deepspeed.yaml
+[CLEANED] target_repo\LlamaFactory\examples\v1\train_full\train_full_fsdp2.yaml
+[CLEANED] target_repo\LlamaFactory\examples\v1\train_full\train_full_ulysses_cp.yaml
+[CLEANED] target_repo\LlamaFactory\examples\v1\train_lora\export_lora.yaml
+[CLEANED] target_repo\LlamaFactory\examples\v1\train_lora\train_lora_sft.yaml
+[CLEANED] target_repo\LlamaFactory\examples\v1\train_lora\train_lora_sft_rank0.yaml
+[CLEANED] target_repo\LlamaFactory\examples\v1\train_qlora\quantization.yaml
+[CLEANED] target_repo\LlamaFactory\requirements\adam-mini.txt
+[CLEANED] target_repo\LlamaFactory\requirements\apollo.txt
+[CLEANED] target_repo\LlamaFactory\requirements\aqlm.txt
+[CLEANED] target_repo\LlamaFactory\requirements\badam.txt
+[CLEANED] target_repo\LlamaFactory\requirements\bitsandbytes.txt
+[CLEANED] target_repo\LlamaFactory\requirements\deepspeed.txt
+[CLEANED] target_repo\LlamaFactory\requirements\dev.txt
+[CLEANED] target_repo\LlamaFactory\requirements\eetq.txt
+[CLEANED] target_repo\LlamaFactory\requirements\fp8-te.txt
+[CLEANED] target_repo\LlamaFactory\requirements\fp8.txt
+[CLEANED] target_repo\LlamaFactory\requirements\galore.txt
+[CLEANED] target_repo\LlamaFactory\requirements\gptq.txt
+[CLEANED] target_repo\LlamaFactory\requirements\hqq.txt
+[CLEANED] target_repo\LlamaFactory\requirements\liger-kernel.txt
+[CLEANED] target_repo\LlamaFactory\requirements\metrics.txt
+[CLEANED] target_repo\LlamaFactory\requirements\minicpm-v.txt
+[CLEANED] target_repo\LlamaFactory\requirements\npu.txt
+[CLEANED] target_repo\LlamaFactory\requirements\openmind.txt
+[CLEANED] target_repo\LlamaFactory\requirements\sglang.txt
+[CLEANED] target_repo\LlamaFactory\requirements\swanlab.txt
+[CLEANED] target_repo\LlamaFactory\requirements\vllm.txt
+[CLEANED] target_repo\LlamaFactory\scripts\bench_qwen.py
+[CLEANED] target_repo\LlamaFactory\scripts\eval_bleu_rouge.py
+[CLEANED] target_repo\LlamaFactory\scripts\hf2dcp.py
+[CLEANED] target_repo\LlamaFactory\scripts\llama_pro.py
+[CLEANED] target_repo\LlamaFactory\scripts\loftq_init.py
+[CLEANED] target_repo\LlamaFactory\scripts\megatron_merge.py
+[CLEANED] target_repo\LlamaFactory\scripts\pissa_init.py
+[CLEANED] target_repo\LlamaFactory\scripts\qwen_omni_merge.py
+[CLEANED] target_repo\LlamaFactory\scripts\vllm_infer.py
+[CLEANED] target_repo\LlamaFactory\scripts\api_example\test_image.py
+[CLEANED] target_repo\LlamaFactory\scripts\api_example\test_toolcall.py
+[CLEANED] target_repo\LlamaFactory\scripts\convert_ckpt\llamafy_baichuan2.py
+[CLEANED] target_repo\LlamaFactory\scripts\convert_ckpt\llamafy_qwen.py
+[CLEANED] target_repo\LlamaFactory\scripts\convert_ckpt\tiny_llama4.py
+[CLEANED] target_repo\LlamaFactory\scripts\convert_ckpt\tiny_qwen3.py
+[CLEANED] target_repo\LlamaFactory\scripts\stat_utils\cal_flops.py
+[CLEANED] target_repo\LlamaFactory\scripts\stat_utils\cal_lr.py
+[CLEANED] target_repo\LlamaFactory\scripts\stat_utils\cal_mfu.py
+[CLEANED] target_repo\LlamaFactory\scripts\stat_utils\cal_ppl.py
+[CLEANED] target_repo\LlamaFactory\scripts\stat_utils\length_cdf.py
+[CLEANED] target_repo\LlamaFactory\src\api.py
+[CLEANED] target_repo\LlamaFactory\src\train.py
+[CLEANED] target_repo\LlamaFactory\src\webui.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\cli.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\launcher.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\api\app.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\api\chat.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\api\common.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\api\protocol.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\api\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\chat\base_engine.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\chat\chat_model.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\chat\hf_engine.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\chat\kt_engine.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\chat\sglang_engine.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\chat\vllm_engine.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\chat\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\data\collator.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\data\converter.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\data\data_utils.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\data\formatter.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\data\loader.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\data\mm_plugin.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\data\parser.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\data\template.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\data\tool_utils.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\data\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\data\processor\feedback.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\data\processor\pairwise.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\data\processor\pretrain.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\data\processor\processor_utils.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\data\processor\supervised.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\data\processor\unsupervised.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\data\processor\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\eval\evaluator.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\eval\template.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\eval\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\extras\constants.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\extras\env.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\extras\logging.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\extras\misc.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\extras\packages.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\extras\ploting.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\extras\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\hparams\data_args.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\hparams\evaluation_args.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\hparams\finetuning_args.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\hparams\generating_args.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\hparams\model_args.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\hparams\parser.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\hparams\training_args.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\hparams\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\adapter.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\loader.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\patcher.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\model_utils\attention.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\model_utils\checkpointing.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\model_utils\embedding.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\model_utils\ktransformers.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\model_utils\kv_cache.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\model_utils\liger_kernel.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\model_utils\longlora.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\model_utils\misc.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\model_utils\mod.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\model_utils\moe.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\model_utils\packing.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\model_utils\quantization.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\model_utils\rope.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\model_utils\unsloth.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\model_utils\valuehead.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\model_utils\visual.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\model\model_utils\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\third_party\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\third_party\muon\muon.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\third_party\muon\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\callbacks.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\fp8_utils.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\test_utils.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\trainer_utils.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\tuner.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\dpo\ktrainer.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\dpo\trainer.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\dpo\workflow.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\dpo\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\hyper_parallel\workflow.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\hyper_parallel\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\kto\trainer.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\kto\workflow.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\kto\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\mca\trainer.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\mca\workflow.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\mca\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\ppo\ppo_utils.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\ppo\trainer.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\ppo\workflow.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\ppo\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\pt\trainer.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\pt\workflow.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\pt\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\rm\metric.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\rm\trainer.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\rm\workflow.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\rm\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\sft\metric.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\sft\trainer.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\sft\workflow.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\train\sft\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\launcher.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\accelerator\helper.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\accelerator\interface.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\accelerator\profiler.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\accelerator\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\config\arg_parser.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\config\arg_utils.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\config\data_args.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\config\model_args.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\config\sample_args.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\config\training_args.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\config\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\core\base_sampler.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\core\base_trainer.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\core\data_engine.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\core\model_engine.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\core\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\core\utils\batching.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\core\utils\callback.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\core\utils\inference_engine.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\core\utils\rendering.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\core\utils\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\data_plugins\converter.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\data_plugins\loader.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\data_plugins\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\add_token.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\initialization.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\peft.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\quantization.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\rendering.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\kernels\base.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\kernels\interface.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\kernels\registry.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\kernels\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\kernels\ops\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\kernels\ops\mlp\npu_fused_moe.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\kernels\ops\mlp\npu_swiglu.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\kernels\ops\mlp\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\kernels\ops\rms_norm\npu_rms_norm.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\kernels\ops\rms_norm\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\kernels\ops\rope\npu_rope.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\kernels\ops\rope\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\parallelization\sequence_parallel.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\parallelization\seq_comm.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\parallelization\ulysses.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\templates\qwen3.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\templates\qwen3_nothink.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\model_plugins\templates\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\sampler_plugins\vllm.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\sampler_plugins\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\trainer_plugins\batching.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\trainer_plugins\lr_scheduler.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\trainer_plugins\optimizer.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\trainer_plugins\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\trainer_plugins\distributed\deepspeed.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\trainer_plugins\distributed\fsdp2.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\trainer_plugins\distributed\hub.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\plugins\trainer_plugins\distributed\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\samplers\cli_sampler.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\trainers\dpo_trainer.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\trainers\rm_trainer.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\trainers\sft_trainer.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\trainers\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\utils\constants.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\utils\dtype.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\utils\env.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\utils\helper.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\utils\logging.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\utils\objects.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\utils\packages.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\utils\plugin.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\utils\pytest.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\utils\types.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\utils\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\utils\callbacks\logging_callback.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\utils\callbacks\trainer_callback.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\v1\utils\callbacks\__init__.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\webui\chatter.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\webui\common.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\webui\control.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\webui\css.py
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\webui\engine.py
+<frozen abc>:106: DeprecationWarning: `OpenAIModel` was renamed to `OpenAIChatModel` to clearly distinguish it from `OpenAIResponsesModel` which uses OpenAI's newer Responses API. Use that unless you're using an OpenAI Chat Completions-compatible API, or require a feature that the Responses API doesn't support yet like audio.
+[CLEANED] target_repo\LlamaFactory\src\llamafactory\webui\interface.py[INFO] Changed directory to: D:\work\vscode\python\huawei_bug\workflow\target_repo\LlamaFactory
+[1/4] Validating configuration...
+鉁?Configuration valid
+[2/4] Validating repository...
+鉁?Repository valid: LlamaFactory
+鉁?Output directory: D:\work\vscode\python\huawei_bug\workflow\target_repo\LlamaFactory\docs
+[4/4] Generating documentation...
+
+[1/5] Dependency Analysis
+[2/5] Module Clustering
+[00:04:56] WARNING  Skipping invalid sub leaf node 'collator.py::PairwiseDataCollatorWithPadding' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'collator.py::MultiModalDataCollatorForSeq2Seq' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'collator.py::KTODataCollatorWithPadding' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'collator.py::SFTDataCollatorWith4DAttentionMask' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'converter.py::DatasetConverter' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'converter.py::OpenAIDatasetConverter' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'converter.py::AlpacaDatasetConverter' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'converter.py::SharegptDatasetConverter' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'processor/feedback.py::FeedbackDatasetProcessor' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'processor/pairwise.py::PairwiseDatasetProcessor' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'processor/pretrain.py::PretrainDatasetProcessor' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'processor/processor_utils.py::DatasetProcessor' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'processor/supervised.py::SupervisedDatasetProcessor' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'processor/supervised.py::PackedSupervisedDatasetProcessor' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'processor/unsupervised.py::UnsupervisedDatasetProcessor' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'template.py::ReasoningTemplate' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'template.py::Glm47ReasoningTemplate' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'template.py::Template' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'template.py::Llama2Template' in module 'data_processing' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'callbacks.py::SaveProcessorCallback' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'callbacks.py::FixValueHeadModelCallback' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'callbacks.py::PissaConvertCallback' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'callbacks.py::ReporterCallback' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'callbacks.py::LogCallback' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'dpo/ktrainer.py::KDPOTrainer' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'dpo/trainer.py::CustomDPOTrainer' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'kto/trainer.py::CustomKTOTrainer' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'mca/trainer.py::CustomMcaTrainer' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'ppo/trainer.py::CustomPPOTrainer' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'pt/trainer.py::CustomTrainer' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'rm/metric.py::ComputeAccuracy' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'rm/trainer.py::PairwiseTrainer' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'sft/metric.py::ComputeAccuracy' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'sft/metric.py::ComputeSimilarity' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'sft/trainer.py::CustomSeq2SeqTrainer' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'trainer_utils.py::DummyOptimizer' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'trainer_utils.py::SwanLabCallbackExtension' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'tuner.py::Worker' in module 'model_training' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'evaluator.py::Evaluator' in module 'model_evaluation' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'template.py::EvalTemplate' in module 'model_evaluation' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'constants.py::EngineName' in module 'utilities' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'constants.py::AttentionFunction' in module 'utilities' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'constants.py::QuantizationMethod' in module 'utilities' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'constants.py::RopeScaling' in module 'utilities' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'constants.py::DownloadSource' in module 'utilities' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'logging.py::_Logger' in module 'utilities' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'logging.py::LoggerHandler' in module 'utilities' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'misc.py::AverageMeter' in module 'utilities' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'chatter.py::WebChatModel' in module 'web_interface' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'engine.py::Engine' in module 'web_interface' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'manager.py::Manager' in module 'web_interface' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'runner.py::Runner' in module 'web_interface' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'data_args.py::DataArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'evaluation_args.py::EvaluationArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'finetuning_args.py::LoraArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'finetuning_args.py::BAdamArgument' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'finetuning_args.py::GaloreArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'finetuning_args.py::RLHFArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'finetuning_args.py::FreezeArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'finetuning_args.py::FinetuningArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'finetuning_args.py::OFTArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'finetuning_args.py::ApolloArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'finetuning_args.py::SwanLabArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'generating_args.py::GeneratingArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'model_args.py::VllmArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'model_args.py::SGLangArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'model_args.py::ProcessorArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'model_args.py::ExportArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'model_args.py::BaseModelArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'model_args.py::ModelArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'model_args.py::QuantizationArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'training_args.py::RayArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'training_args.py::TrainingArguments' in module 'configuration_and_hyperparameters' - not found in components
+[00:04:56] WARNING  Skipping invalid sub leaf node 'training_args.py::Fp8Arguments' in module 'configuration_and_hyperparameters' - not found in components
+[3/5] Documentation Generation
+F:\APP\Anaconda\others\envs\MCP\Lib\site-packages\pydantic_ai\models\openai.py:302: UserWarning: Sampling parameters ['temperature'] are not supported when reasoning is enabled. These settings will be ignored.
+  warnings.warn(
+
+
+Interrupted by user
+[INFO] Returned to: D:\work\vscode\python\huawei_bug\workflow
