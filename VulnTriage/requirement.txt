@@ -1,0 +1,20 @@
+############################################
+# Runtime dependencies for this project
+# Generated on 2026-01-08
+############################################
+
+# LangChain ecosystem (agent + tools + OpenAI integration)
+langchain
+langchain-core
+langchain-openai
+
+# YAML parsing for pattern/config files
+PyYAML
+
+# TOML parsing (conditional and fallback usage in recon)
+tomli
+toml
+
+# Notes:
+# - The code expects OPENAI_API_KEY to be set at runtime for vfinder agent.
+# - If you prefer the conventional name, you can duplicate this file as requirements.txt.

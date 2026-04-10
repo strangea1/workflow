@@ -1,0 +1,4 @@
+[submodule "datasets"]
+	path = datasets
+	url = git@github.com:xzhxzw/VulnTriage-dataset.git
+	ignore = untracked

@@ -1,0 +1,49 @@
+# Python Configuration File Patterns
+
+patterns:
+  # Requirements files
+  - type: file
+    names:
+      - "requirements.txt"
+      - "requirements-dev.txt"
+      - "requirements-test.txt"
+      - "requirements-tests.txt"
+      - "requirements-docs.txt"
+    framework: pip
+    category: dependency
+    
+  # pyproject.toml
+  - type: file
+    names:
+      - "pyproject.toml"
+    framework: python_build
+    category: dependency
+    
+  # setup.py
+  - type: file
+    names:
+      - "setup.py"
+    framework: python_build
+    category: dependency
+    
+  # setup.cfg
+  - type: file
+    names:
+      - "setup.cfg"
+    framework: python_build
+    category: dependency
+    
+  # Pipfile
+  - type: file
+    names:
+      - "Pipfile"
+      - "Pipfile.lock"
+    framework: pipenv
+    category: dependency
+    
+  # Poetry
+  - type: file
+    names:
+      - "poetry.lock"
+    framework: poetry
+    category: dependency

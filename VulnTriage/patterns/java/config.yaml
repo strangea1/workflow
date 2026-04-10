@@ -1,0 +1,49 @@
+# Java Configuration File Patterns
+
+patterns:
+  # Spring Boot configuration
+  - type: file
+    names:
+      - "application.properties"
+      - "application.yml"
+      - "application.yaml"
+      - "application-*.properties"
+      - "application-*.yml"
+      - "application-*.yaml"
+    framework: spring-boot
+    category: config
+    
+  # Maven
+  - type: file
+    names:
+      - "pom.xml"
+    framework: maven
+    category: dependency
+    
+  # Gradle
+  - type: file
+    names:
+      - "build.gradle"
+      - "build.gradle.kts"
+      - "settings.gradle"
+      - "settings.gradle.kts"
+    framework: gradle
+    category: dependency
+    
+  # Log4j / Logback
+  - type: file
+    names:
+      - "log4j.properties"
+      - "log4j.xml"
+      - "log4j2.xml"
+      - "logback.xml"
+      - "logback-spring.xml"
+    framework: logging
+    category: config
+    
+  # Web.xml
+  - type: file
+    names:
+      - "web.xml"
+    framework: servlet
+    category: config

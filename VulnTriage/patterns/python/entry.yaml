@@ -1,0 +1,33 @@
+patterns:
+  # FastAPI patterns
+  - type: decorator
+    names: 
+      - "*.get"
+      - "*.post"
+      - "*.put"
+      - "*.delete"
+      - "*.patch"
+      - "*.route"
+    framework: fastapi
+    extract:
+      path: first_arg
+      method: decorator_name
+    
+  # Flask patterns
+  - type: decorator
+    names:
+      - "*.route"
+    framework: flask
+    extract:
+      path: first_arg
+      methods: kwarg_methods
+  
+  # Django URL patterns
+  - type: function_call
+    names:
+      - "path"
+      - "re_path"
+    framework: django
+    extract:
+      pattern: first_arg
+      view: second_arg

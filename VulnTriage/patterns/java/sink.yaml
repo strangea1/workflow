@@ -1,0 +1,91 @@
+# Java Sensitive Sink Patterns
+# Dangerous operations that may lead to vulnerabilities
+
+patterns:
+  # Command injection
+  - type: method_call
+    names:
+      - "Runtime.getRuntime().exec"
+      - "ProcessBuilder.start"
+      - "ProcessBuilder.command"
+    category: command_injection
+    severity: high
+    
+  # Code injection / Reflection
+  - type: method_call
+    names:
+      - "Class.forName"
+      - "ClassLoader.loadClass"
+      - "Method.invoke"
+      - "Constructor.newInstance"
+      - "ScriptEngine.eval"
+      - "Compiler.compile"
+    category: code_injection
+    severity: high
+    
+  # File access - Keep only high-risk file operations
+  # Removed: FileInputStream, FileReader, FileWriter, RandomAccessFile (too common)
+  # Removed: Files.readAllBytes, Files.readAllLines (often used for config/static files)
+  # Keep: FileOutputStream, Files.write, Files.delete (write/delete operations are higher risk)
+  - type: method_call
+    names:
+      - "FileOutputStream"
+      - "Files.write"
+      - "Files.delete"
+      - "Files.move"
+    category: file_access
+    severity: medium
+    
+  # SQL operations (potential SQLi)
+  - type: method_call
+    names:
+      - "Statement.execute"
+      - "Statement.executeQuery"
+      - "Statement.executeUpdate"
+      - "Connection.prepareStatement"
+      - "Connection.createStatement"
+    category: sql_operation
+    severity: medium
+    
+  # Deserialization
+  - type: method_call
+    names:
+      - "ObjectInputStream.readObject"
+      - "XMLDecoder.readObject"
+      - "XStream.fromXML"
+      - "Yaml.load"
+    category: deserialization
+    severity: high
+    
+  # Network operations
+  - type: method_call
+    names:
+      - "URL.openConnection"
+      - "HttpURLConnection.connect"
+      - "Socket"
+      - "ServerSocket"
+      - "HttpClient.send"
+    category: network_access
+    severity: low
+    
+  # Path traversal - REMOVED: 'File', 'Paths.get', 'Path.resolve' are too broad
+  # These are fundamental Java APIs used everywhere for normal path operations
+  # Only flag if we can detect path traversal patterns specifically
+    
+  # XML/XPath injection
+  - type: method_call
+    names:
+      - "DocumentBuilder.parse"
+      - "SAXParser.parse"
+      - "XPath.compile"
+      - "XPath.evaluate"
+    category: xml_operation
+    severity: medium
+    
+  # LDAP injection
+  - type: method_call
+    names:
+      - "DirContext.search"
+      - "LdapContext.search"
+    category: ldap_operation
+    severity: high

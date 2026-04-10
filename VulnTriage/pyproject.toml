@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vuln-reach-analysis"
+version = "0.1.0"
+description = "Vulnerability reachability analysis: recon, sink finding, call mapping, and verification"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = []
+keywords = ["security", "vulnerability", "reachability", "sink", "recon"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Security",
+]
+
+dependencies = [
+    "PyYAML",
+    "tree-sitter",
+    "tree-sitter-python",
+    "tree-sitter-java",
+    "langchain[community,openai]",
+    "langchain-openai",
+    "langchain-core>=0.3.83",
+    "langchain-experimental>=0.3.0",
+    "toml>=0.10.2",
+    "tomli>=2.4.0",
+    "fix-compile @ git+https://github.com/Dilrevx/fix-compile.git",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[project.scripts]
+vuln_reach_analysis = "vulntriage_cli:main"
+vuln-reach-analysis = "vulntriage_cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+py-modules = ["vulntriage_cli"]

@@ -1,0 +1,87 @@
+# Java Entry Point Patterns (HTTP endpoints)
+# Matches Spring annotations and JAX-RS annotations
+
+patterns:
+  # Spring MVC/Boot REST endpoints
+  - type: annotation
+    names:
+      - "RestController"
+      - "Controller"
+    framework: spring
+    scope: class
+    
+  - type: annotation
+    names:
+      - "GetMapping"
+      - "PostMapping"
+      - "PutMapping"
+      - "DeleteMapping"
+      - "PatchMapping"
+    framework: spring
+    scope: method
+    extract:
+      - path: value  # @GetMapping("/api/user")
+      - method: annotation_name  # GetMapping -> GET
+    method_mapping:
+      GetMapping: GET
+      PostMapping: POST
+      PutMapping: PUT
+      DeleteMapping: DELETE
+      PatchMapping: PATCH
+      
+  - type: annotation
+    names:
+      - "RequestMapping"
+    framework: spring
+    scope: method
+    extract:
+      - path: value
+      - method: annotation_name  # Extract from params or default to REQUEST
+    method_extract:
+      source: params  # Extract from method=RequestMethod.XXX
+      pattern: method\s*=\s*RequestMethod\.(\w+)
+      default: REQUEST
+    
+  # JAX-RS endpoints
+  - type: annotation
+    names:
+      - "Path"
+    framework: jax-rs
+    scope: class_or_method
+    standalone: true  # Can work without controller class
+    extract:
+      - path: value
+      
+  - type: annotation
+    names:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+      - "PATCH"
+      - "HEAD"
+      - "OPTIONS"
+    framework: jax-rs
+    scope: method
+    standalone: true  # Can work without controller class
+    extract:
+      - method: annotation_name
+    method_mapping:
+      GET: GET
+      POST: POST
+      PUT: PUT
+      DELETE: DELETE
+      PATCH: PATCH
+      HEAD: HEAD
+      OPTIONS: OPTIONS
+      
+  # Servlet mappings
+  - type: annotation
+    names:
+      - "WebServlet"
+    framework: servlet
+    scope: class
+    standalone: true  # Can work without controller class
+    extract:
+      - path: value
+      - path: urlPatterns

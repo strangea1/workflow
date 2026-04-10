@@ -1,0 +1,249 @@
+{
+  "module": "framework-entity",
+  "component": "util/Converters.GenericValueToJSON",
+  "confidence": 0.8,
+  "rationale": "The vulnerability is triggered during the JSON deserialization process using Jackson, which relates to the conversion of data types. The component `util/Converters.GenericValueToJSON` is responsible for handling JSON operations, making it a suitable match for the context of this vulnerability.",
+  "status": "mapped",
+  "module_context_snippet": {
+    "text": "framework-base: (无描述) (components: component/ComponentConfig.TestSuiteInfo, component/ComponentConfig.KeystoreInfo, config/FileLoader.FileLoader, config/ResourceLoader.ResourceLoader, container/ContainerConfig.ContainerConfig, container/NamingServiceContainer.NamingServiceContainer, conversion/AbstractConverter.AbstractConverter, conversion/AbstractLocalizedConverter.AbstractLocalizedConverter, conversion/BooleanConverters.BooleanToInteger, conversion/BooleanConverters.IntegerToBoolean, conversion/BooleanConverters.BooleanToSet, conversion/CollectionConverters.StringToSet, conversion/CollectionConverters.ListToString, conversion/CollectionConverters.StringToList, conversion/DateTimeConverters.DateToCalendar, conversion/DateTimeConverters.CalendarToDate, conversion/DateTimeConverters.DurationToBigDecimal, conversion/DateTimeConverters.SqlDateToString, conversion/DateTimeConverters.DurationToFloat, conversion/DateTimeConverters.DateToTimestamp, conversion/DateTimeConverters.DateToSqlTime, conversion/DateTimeConverters.StringToDuration, conversion/DateTimeConverters.TimestampToString, conversion/DateTimeConverters.NumberToTimestamp, conversion/DateTimeConverters.SqlDateToDate, conversion/DateTimeConverters.NumberToSqlDate, conversion/DateTimeConverters.SqlDateToTimestamp, conversion/DateTimeConverters.TimestampToDate, conversion/DateTimeConverters.DurationToList, conversion/DateTimeConverters.GenericLocalizedConverter, conversion/JSONConverters.JSONConverters, conversion/JSONConverters.JSONToMap, conversion/JSONConverters.JSONToList, conversion/JSONConverters.MapToJSON, conversion/MiscConverters.BlobToByteArray, conversion/MiscConverters.SimpleDateFormatToString, conversion/MiscConverters.StringToCharset, conversion/MiscConverters.ByteArrayToBlob, conversion/MiscConverters.RegexPatternToString, conversion/MiscConverters.StringWrapperToString, conversion/MiscConverters.CharsetToString, conversion/MiscConverters.DecimalFormatToString, conversion/MiscConverters.StringToEnumConverterCreator, conversion/MiscConverters.NotAConverterHelper, conversion/MiscConverters.StringToDecimalFormat, conversion/MiscConverters.LocaleToString, conversion/MiscConverters.StringBufferToString, conversion/MiscConverters.UUIDToString, conversion/MiscConverters.StringToUUID, conversion/MiscConverters.StringToLocale, conversion/NetConverters.URLToString, conversion/NetConverters.URLToURI, conversion/NumberConverters.AbstractNumberToStringConverter, conversion/NumberConverters.IntegerToByte, conversion/NumberConverters.BigIntegerToString, conversion/NumberConverters.ByteToString, conversion/NumberConverters.AbstractStringToNumberConverter, conversion/NumberConverters.IntegerToString, conversion/NumberConverters.StringToLong, crypto/Main.Main, html/CustomPermissivePolicy.CustomPermissivePolicy, html/CustomSafePolicy.CustomSafePolicy, location/FlexibleLocation.FlexibleLocation, metrics/MetricsFactory.MetricsFactory, util/Assert.Assert, util/DateRange.DateRange, util/GroovyUtil.GroovyUtil, util/JNDIContextFactory.JNDIContextFactory, util/KeyStoreUtil.KeyStoreUtil, util/ObjectType.ObjectType, util/Observer.Observer, util/ReferenceCleaner.ReferenceCleaner, util/UtilDateTime.TimeZoneHolder, util/UtilDateTime.UtilDateTime, util/UtilFormatOut.UtilFormatOut, util/UtilPlist.UtilPlist, util/UtilValidate.UtilValidate, util/cache/CacheListener.CacheListener, util/collections/GenericMapSet.GenericMapSet, util/collections/LRUMap.LRUMap)\nframework-common: (无描述) (components: JsLanguageFilesMapping.DateJs, authentication/AuthHelper.AuthHelper, geo/GeoWorker.GeoWorker, login/LdapAuthenticationServices.LdapAuthenticationServices, login/LoginServices.LoginServices, qrcode/QRCodeEvents.QRCodeEvents, status/StatusServices.StatusServices, telecom/TelecomServices.TelecomServices)\nframework-entity: (无描述) (components: DelegatorContainer.DelegatorContainer, condition/EntityClause.EntityClause, condition/EntityConditionVisitor.EntityConditionVisitor, config/model/ResourceLoader.ResourceLoader, jdbc/ExecQueryCallbackFunctionIF.ExecQueryCallbackFunctionIF, serialize/XmlSerializable.XmlSerializable, transaction/GeronimoTransactionFactory.GeronimoTransactionFactory, util/Converters.GenericValueToJSON, util/EntityDataLoader.EntityDataLoader)\nframework-entityext: (无描述) (components: cache/EntityCacheServices.EntityCacheServices, eca/DelegatorEcaHandler.DelegatorEcaHandler)\nframework-minilang: (无描述) (components: SimpleServiceEngine.SimpleServiceEngine, method/callops/CallService.CallServiceFactory, method/callops/CallServiceAsynch.CallServiceAsynchFactory, method/callops/CallSimpleMethod.CallSimpleMethodFactory, method/callops/SetServiceFields.SetServiceFieldsFactory, method/conditional/CombinedCondition.AndConditionFactory, method/conditional/CombinedCondition.OrConditionFactory, method/conditional/CompareFieldCondition.CompareFieldConditionFactory, method/conditional/HasPermissionCondition.HasPermissionConditionFactory, method/conditional/RegexpCondition.RegexpConditionFactory, method/entityops/ClearCacheLine.ClearCacheLineFactory, method/entityops/ClearEntityCaches.ClearEntityCachesFactory, method/entityops/EntityCondition.EntityConditionFactory, method/entityops/EntityOne.EntityOne, method/entityops/RefreshValue.RefreshValueFactory, method/entityops/RemoveByAnd.RemoveByAndFactory, method/entityops/RemoveList.RemoveListFactory, method/entityops/SetPkFields.SetPkFieldsFactory, method/envops/Break.BreakFactory, method/envops/Continue.ContinueFactory, method/envops/CreateObject.CreateObjectFactory, method/envops/Iterate.IterateFactory, method/envops/Now.NowFactory, method/envops/Now.NowDateToEnvFactory, method/envops/OrderMapList.OrderMapListFactory, method/envops/StringToList.StringToListFactory, method/envops/ToString.ToStringFactory, method/envops/While.WhileFactory, method/eventops/FieldToRequest.FieldToRequestFactory, method/otherops/Calculate.CalculateFactory, method/otherops/PropertyToField.PropertyToField, method/otherops/Trace.TraceFactory)\nframework-security: (无描述) (components: CsrfDefenseStrategy.CsrfDefenseStrategy)\nframework-service: (无描述) (components: ServiceContainer.ServiceContainer, calendar/ExpressionUiHelper.ExpressionUiHelper, calendar/RecurrenceUtil.RecurrenceUtil, calendar/TemporalExpressions.DayOfWeekRange, calendar/TemporalExpressions.MonthRange, calendar/TemporalExpressions.Difference, calendar/TemporalExpressions.DayOfMonthRange, calendar/TemporalExpressions.HourRange, config/ServiceConfigUtil.ServiceConfigUtil, engine/RouteEngine.RouteEngine, group/ServiceGroupEngine.ServiceGroupEngine, job/JobPriority.JobPriority, job/JobUtil.JobUtil, mail/ServiceMcaUtil.ServiceMcaUtil, rmi/RmiServiceEngine.RmiServiceEngine)\nframework-start: (无描述) (components: AdminClient.AdminClient)\nframework-webapp: (无描述) (components: control/ContextFilter.ContextFilter, control/ControlFilter.ControlFilter, control/ExternalLoginKeysManager.ExternalLoginKeysManager, control/LoginCheck.LoginCheck, control/LoginEventListener.LoginEventListener, control/RequestHandler.EventCollectionProducer, control/SameSiteFilter.SameSiteFilter, control/TokenFilter.TokenFilter, event/JavaEventHandler.JavaEventHandler, event/RequestBodyMapHandlerFactory.RequestBodyMapHandlerFactory, event/ScriptEventHandler.ScriptEventHandler, event/ServiceMultiEventHandler.ServiceMultiEventHandler, ftl/CsrfTokenAjaxTransform.CsrfTokenAjaxTransform, ftl/OfbizAmountTransform.OfbizAmountTransform, ftl/OfbizScreenTransform.OfbizScreenTransform, ftl/OfbizUrlTransform.OfbizUrlTransform, ftl/RenderWrappedTextTransform.RenderWrappedTextTransform, ftl/SetContextFieldTransform.SetContextFieldTransform, view/JspViewHandler.JspViewHandler)\nframework-webtools: (无描述) (components: GenericWebEvent.GenericWebEvent, WebToolsServices.WebToolsServices, labelmanager/LabelReferences.LabelReferences)",
+    "modules": [
+      {
+        "path": "framework-base",
+        "description": "(无描述)",
+        "components": [
+          "component/ComponentConfig.TestSuiteInfo",
+          "component/ComponentConfig.KeystoreInfo",
+          "config/FileLoader.FileLoader",
+          "config/ResourceLoader.ResourceLoader",
+          "container/ContainerConfig.ContainerConfig",
+          "container/NamingServiceContainer.NamingServiceContainer",
+          "conversion/AbstractConverter.AbstractConverter",
+          "conversion/AbstractLocalizedConverter.AbstractLocalizedConverter",
+          "conversion/BooleanConverters.BooleanToInteger",
+          "conversion/BooleanConverters.IntegerToBoolean",
+          "conversion/BooleanConverters.BooleanToSet",
+          "conversion/CollectionConverters.StringToSet",
+          "conversion/CollectionConverters.ListToString",
+          "conversion/CollectionConverters.StringToList",
+          "conversion/DateTimeConverters.DateToCalendar",
+          "conversion/DateTimeConverters.CalendarToDate",
+          "conversion/DateTimeConverters.DurationToBigDecimal",
+          "conversion/DateTimeConverters.SqlDateToString",
+          "conversion/DateTimeConverters.DurationToFloat",
+          "conversion/DateTimeConverters.DateToTimestamp",
+          "conversion/DateTimeConverters.DateToSqlTime",
+          "conversion/DateTimeConverters.StringToDuration",
+          "conversion/DateTimeConverters.TimestampToString",
+          "conversion/DateTimeConverters.NumberToTimestamp",
+          "conversion/DateTimeConverters.SqlDateToDate",
+          "conversion/DateTimeConverters.NumberToSqlDate",
+          "conversion/DateTimeConverters.SqlDateToTimestamp",
+          "conversion/DateTimeConverters.TimestampToDate",
+          "conversion/DateTimeConverters.DurationToList",
+          "conversion/DateTimeConverters.GenericLocalizedConverter",
+          "conversion/JSONConverters.JSONConverters",
+          "conversion/JSONConverters.JSONToMap",
+          "conversion/JSONConverters.JSONToList",
+          "conversion/JSONConverters.MapToJSON",
+          "conversion/MiscConverters.BlobToByteArray",
+          "conversion/MiscConverters.SimpleDateFormatToString",
+          "conversion/MiscConverters.StringToCharset",
+          "conversion/MiscConverters.ByteArrayToBlob",
+          "conversion/MiscConverters.RegexPatternToString",
+          "conversion/MiscConverters.StringWrapperToString",
+          "conversion/MiscConverters.CharsetToString",
+          "conversion/MiscConverters.DecimalFormatToString",
+          "conversion/MiscConverters.StringToEnumConverterCreator",
+          "conversion/MiscConverters.NotAConverterHelper",
+          "conversion/MiscConverters.StringToDecimalFormat",
+          "conversion/MiscConverters.LocaleToString",
+          "conversion/MiscConverters.StringBufferToString",
+          "conversion/MiscConverters.UUIDToString",
+          "conversion/MiscConverters.StringToUUID",
+          "conversion/MiscConverters.StringToLocale",
+          "conversion/NetConverters.URLToString",
+          "conversion/NetConverters.URLToURI",
+          "conversion/NumberConverters.AbstractNumberToStringConverter",
+          "conversion/NumberConverters.IntegerToByte",
+          "conversion/NumberConverters.BigIntegerToString",
+          "conversion/NumberConverters.ByteToString",
+          "conversion/NumberConverters.AbstractStringToNumberConverter",
+          "conversion/NumberConverters.IntegerToString",
+          "conversion/NumberConverters.StringToLong",
+          "crypto/Main.Main",
+          "html/CustomPermissivePolicy.CustomPermissivePolicy",
+          "html/CustomSafePolicy.CustomSafePolicy",
+          "location/FlexibleLocation.FlexibleLocation",
+          "metrics/MetricsFactory.MetricsFactory",
+          "util/Assert.Assert",
+          "util/DateRange.DateRange",
+          "util/GroovyUtil.GroovyUtil",
+          "util/JNDIContextFactory.JNDIContextFactory",
+          "util/KeyStoreUtil.KeyStoreUtil",
+          "util/ObjectType.ObjectType",
+          "util/Observer.Observer",
+          "util/ReferenceCleaner.ReferenceCleaner",
+          "util/UtilDateTime.TimeZoneHolder",
+          "util/UtilDateTime.UtilDateTime",
+          "util/UtilFormatOut.UtilFormatOut",
+          "util/UtilPlist.UtilPlist",
+          "util/UtilValidate.UtilValidate",
+          "util/cache/CacheListener.CacheListener",
+          "util/collections/GenericMapSet.GenericMapSet",
+          "util/collections/LRUMap.LRUMap"
+        ]
+      },
+      {
+        "path": "framework-common",
+        "description": "(无描述)",
+        "components": [
+          "JsLanguageFilesMapping.DateJs",
+          "authentication/AuthHelper.AuthHelper",
+          "geo/GeoWorker.GeoWorker",
+          "login/LdapAuthenticationServices.LdapAuthenticationServices",
+          "login/LoginServices.LoginServices",
+          "qrcode/QRCodeEvents.QRCodeEvents",
+          "status/StatusServices.StatusServices",
+          "telecom/TelecomServices.TelecomServices"
+        ]
+      },
+      {
+        "path": "framework-entity",
+        "description": "(无描述)",
+        "components": [
+          "DelegatorContainer.DelegatorContainer",
+          "condition/EntityClause.EntityClause",
+          "condition/EntityConditionVisitor.EntityConditionVisitor",
+          "config/model/ResourceLoader.ResourceLoader",
+          "jdbc/ExecQueryCallbackFunctionIF.ExecQueryCallbackFunctionIF",
+          "serialize/XmlSerializable.XmlSerializable",
+          "transaction/GeronimoTransactionFactory.GeronimoTransactionFactory",
+          "util/Converters.GenericValueToJSON",
+          "util/EntityDataLoader.EntityDataLoader"
+        ]
+      },
+      {
+        "path": "framework-entityext",
+        "description": "(无描述)",
+        "components": [
+          "cache/EntityCacheServices.EntityCacheServices",
+          "eca/DelegatorEcaHandler.DelegatorEcaHandler"
+        ]
+      },
+      {
+        "path": "framework-minilang",
+        "description": "(无描述)",
+        "components": [
+          "SimpleServiceEngine.SimpleServiceEngine",
+          "method/callops/CallService.CallServiceFactory",
+          "method/callops/CallServiceAsynch.CallServiceAsynchFactory",
+          "method/callops/CallSimpleMethod.CallSimpleMethodFactory",
+          "method/callops/SetServiceFields.SetServiceFieldsFactory",
+          "method/conditional/CombinedCondition.AndConditionFactory",
+          "method/conditional/CombinedCondition.OrConditionFactory",
+          "method/conditional/CompareFieldCondition.CompareFieldConditionFactory",
+          "method/conditional/HasPermissionCondition.HasPermissionConditionFactory",
+          "method/conditional/RegexpCondition.RegexpConditionFactory",
+          "method/entityops/ClearCacheLine.ClearCacheLineFactory",
+          "method/entityops/ClearEntityCaches.ClearEntityCachesFactory",
+          "method/entityops/EntityCondition.EntityConditionFactory",
+          "method/entityops/EntityOne.EntityOne",
+          "method/entityops/RefreshValue.RefreshValueFactory",
+          "method/entityops/RemoveByAnd.RemoveByAndFactory",
+          "method/entityops/RemoveList.RemoveListFactory",
+          "method/entityops/SetPkFields.SetPkFieldsFactory",
+          "method/envops/Break.BreakFactory",
+          "method/envops/Continue.ContinueFactory",
+          "method/envops/CreateObject.CreateObjectFactory",
+          "method/envops/Iterate.IterateFactory",
+          "method/envops/Now.NowFactory",
+          "method/envops/Now.NowDateToEnvFactory",
+          "method/envops/OrderMapList.OrderMapListFactory",
+          "method/envops/StringToList.StringToListFactory",
+          "method/envops/ToString.ToStringFactory",
+          "method/envops/While.WhileFactory",
+          "method/eventops/FieldToRequest.FieldToRequestFactory",
+          "method/otherops/Calculate.CalculateFactory",
+          "method/otherops/PropertyToField.PropertyToField",
+          "method/otherops/Trace.TraceFactory"
+        ]
+      },
+      {
+        "path": "framework-security",
+        "description": "(无描述)",
+        "components": [
+          "CsrfDefenseStrategy.CsrfDefenseStrategy"
+        ]
+      },
+      {
+        "path": "framework-service",
+        "description": "(无描述)",
+        "components": [
+          "ServiceContainer.ServiceContainer",
+          "calendar/ExpressionUiHelper.ExpressionUiHelper",
+          "calendar/RecurrenceUtil.RecurrenceUtil",
+          "calendar/TemporalExpressions.DayOfWeekRange",
+          "calendar/TemporalExpressions.MonthRange",
+          "calendar/TemporalExpressions.Difference",
+          "calendar/TemporalExpressions.DayOfMonthRange",
+          "calendar/TemporalExpressions.HourRange",
+          "config/ServiceConfigUtil.ServiceConfigUtil",
+          "engine/RouteEngine.RouteEngine",
+          "group/ServiceGroupEngine.ServiceGroupEngine",
+          "job/JobPriority.JobPriority",
+          "job/JobUtil.JobUtil",
+          "mail/ServiceMcaUtil.ServiceMcaUtil",
+          "rmi/RmiServiceEngine.RmiServiceEngine"
+        ]
+      },
+      {
+        "path": "framework-start",
+        "description": "(无描述)",
+        "components": [
+          "AdminClient.AdminClient"
+        ]
+      },
+      {
+        "path": "framework-webapp",
+        "description": "(无描述)",
+        "components": [
+          "control/ContextFilter.ContextFilter",
+          "control/ControlFilter.ControlFilter",
+          "control/ExternalLoginKeysManager.ExternalLoginKeysManager",
+          "control/LoginCheck.LoginCheck",
+          "control/LoginEventListener.LoginEventListener",
+          "control/RequestHandler.EventCollectionProducer",
+          "control/SameSiteFilter.SameSiteFilter",
+          "control/TokenFilter.TokenFilter",
+          "event/JavaEventHandler.JavaEventHandler",
+          "event/RequestBodyMapHandlerFactory.RequestBodyMapHandlerFactory",
+          "event/ScriptEventHandler.ScriptEventHandler",
+          "event/ServiceMultiEventHandler.ServiceMultiEventHandler",
+          "ftl/CsrfTokenAjaxTransform.CsrfTokenAjaxTransform",
+          "ftl/OfbizAmountTransform.OfbizAmountTransform",
+          "ftl/OfbizScreenTransform.OfbizScreenTransform",
+          "ftl/OfbizUrlTransform.OfbizUrlTransform",
+          "ftl/RenderWrappedTextTransform.RenderWrappedTextTransform",
+          "ftl/SetContextFieldTransform.SetContextFieldTransform",
+          "view/JspViewHandler.JspViewHandler"
+        ]
+      },
+      {
+        "path": "framework-webtools",
+        "description": "(无描述)",
+        "components": [
+          "GenericWebEvent.GenericWebEvent",
+          "WebToolsServices.WebToolsServices",
+          "labelmanager/LabelReferences.LabelReferences"
+        ]
+      }
+    ]
+  },
+  "cli_context": {
+    "trigger": "JSON.java:return mapper.readValue(jsonString, targetClass) // Jackson 反序列化 sink",
+    "target": "",
+    "repo": "ofbiz-framework-release24.09.05",
+    "cve": "CVE-2025-49128",
+    "filepath": null
+  }
+}

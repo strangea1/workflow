@@ -1,0 +1,274 @@
+# Technology Stack Patterns
+
+patterns:
+  # Container technologies
+  - type: file
+    names:
+      - "Dockerfile"
+      - "*.dockerfile"
+    framework: container
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "docker-compose.yml"
+      - "docker-compose.yaml"
+      - "compose.yml"
+      - "compose.yaml"
+    framework: container_orchestration
+    category: tech_stack
+  
+  # Kubernetes / Container orchestration
+  - type: file
+    names:
+      - "*.k8s.yaml"
+      - "*.k8s.yml"
+      - "kustomization.yaml"
+      - "kustomization.yml"
+      - "Chart.yaml"
+    framework: kubernetes
+    category: tech_stack
+  
+  # Java build tools
+  - type: file
+    names:
+      - "pom.xml"
+    framework: maven
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "build.gradle"
+      - "build.gradle.kts"
+      - "settings.gradle"
+      - "settings.gradle.kts"
+    framework: gradle
+    category: tech_stack
+  
+  # Python build tools
+  - type: file
+    names:
+      - "requirements.txt"
+      - "requirements*.txt"
+    framework: pip
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "pyproject.toml"
+    framework: python_build
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "setup.py"
+      - "setup.cfg"
+    framework: python_build
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "Pipfile"
+      - "Pipfile.lock"
+    framework: pipenv
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "poetry.lock"
+    framework: poetry
+    category: tech_stack
+  
+  # Node.js / JavaScript
+  - type: file
+    names:
+      - "package.json"
+      - "package-lock.json"
+    framework: npm
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "yarn.lock"
+    framework: yarn
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "pnpm-lock.yaml"
+    framework: pnpm
+    category: tech_stack
+    
+  - type: file
+    names:
+      - ".nvmrc"
+    framework: nodejs
+    category: tech_stack
+  
+  # Spring Boot configuration
+  - type: file
+    names:
+      - "application.properties"
+      - "application.yml"
+      - "application.yaml"
+      - "application-*.properties"
+      - "application-*.yml"
+      - "application-*.yaml"
+      - "bootstrap.properties"
+      - "bootstrap.yml"
+    framework: spring_boot
+    category: tech_stack
+  
+  # CI/CD
+  - type: file
+    names:
+      - ".github/workflows/*.yml"
+      - ".github/workflows/*.yaml"
+    framework: github_actions
+    category: tech_stack
+    
+  - type: file
+    names:
+      - ".gitlab-ci.yml"
+    framework: gitlab_ci
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "Jenkinsfile"
+    framework: jenkins
+    category: tech_stack
+    
+  - type: file
+    names:
+      - ".travis.yml"
+    framework: travis_ci
+    category: tech_stack
+    
+  - type: file
+    names:
+      - ".circleci/config.yml"
+    framework: circleci
+    category: tech_stack
+  
+  # Cloud platforms
+  - type: file
+    names:
+      - "serverless.yml"
+      - "serverless.yaml"
+    framework: serverless
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "sam.yaml"
+    framework: aws_sam
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "template.yaml"
+    framework: aws_cloudformation
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "app.yaml"
+      - "app.yml"
+    framework: google_app_engine
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "azure-pipelines.yml"
+    framework: azure_devops
+    category: tech_stack
+  
+  # Configuration files
+  - type: file
+    names:
+      - ".env"
+      - ".env.*"
+    framework: environment_config
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "web.xml"
+    framework: servlet_config
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "log4j.properties"
+      - "log4j.xml"
+      - "log4j2.xml"
+      - "logback.xml"
+      - "logback-spring.xml"
+    framework: logging
+    category: tech_stack
+  
+  # Database
+  - type: file
+    names:
+      - "schema.sql"
+      - "*.sql"
+    framework: database
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "flyway.conf"
+      - "liquibase.properties"
+    framework: database_migration
+    category: tech_stack
+  
+  # Other tools
+  - type: file
+    names:
+      - ".editorconfig"
+    framework: editor_config
+    category: tech_stack
+    
+  - type: file
+    names:
+      - ".prettierrc"
+    framework: prettier
+    category: tech_stack
+    
+  - type: file
+    names:
+      - ".eslintrc*"
+    framework: eslint
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "tsconfig.json"
+    framework: typescript
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "go.mod"
+      - "go.sum"
+    framework: go
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "Cargo.toml"
+    framework: rust
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "Gemfile"
+    framework: ruby
+    category: tech_stack
+    
+  - type: file
+    names:
+      - "composer.json"
+    framework: php
+    category: tech_stack

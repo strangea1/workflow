@@ -1,0 +1,15 @@
+patterns:
+  # Common validation/sanitization decorators
+  - type: decorator
+    names:
+      - "login_required"
+      - "permission_required"
+      - "requires_authentication"
+      - "validate_*"
+    framework: common
+    
+  # FastAPI dependencies
+  - type: function_call
+    names:
+      - "Depends"
+    framework: fastapi

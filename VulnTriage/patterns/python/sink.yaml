@@ -1,0 +1,24 @@
+patterns:
+  # Command execution
+  # Note: These are potential sinks but may be legitimate in scripts/tools
+  - type: function_call
+    names:
+      - "os.system"
+      - "os.popen"
+      - "subprocess.call"
+      - "subprocess.run"
+      - "subprocess.Popen"
+    category: command_injection
+    
+  # Code execution
+  # Note: These are high-risk sinks, but eval may be used in config/benchmark code
+  - type: function_call
+    names:
+      - "eval"
+      - "exec"
+      - "compile"
+    category: code_injection
+    
+  # File operations - REMOVED: 'open' and 'file' are too broad
+  # Most file operations in Python use 'open', which is normal and expected
+  # Only flag specific dangerous file operations if needed in the future

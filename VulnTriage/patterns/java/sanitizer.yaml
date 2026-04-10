@@ -1,0 +1,51 @@
+# Java Sanitizer/Validator Patterns
+# Security and validation annotations
+
+patterns:
+  # Spring Security
+  - type: annotation
+    names:
+      - "PreAuthorize"
+      - "PostAuthorize"
+      - "Secured"
+      - "RolesAllowed"
+    framework: spring-security
+    scope: method_or_class
+    category: authorization
+    
+  # Validation annotations (Bean Validation / Hibernate Validator)
+  - type: annotation
+    names:
+      - "Valid"
+      - "Validated"
+      - "NotNull"
+      - "NotEmpty"
+      - "NotBlank"
+      - "Size"
+      - "Min"
+      - "Max"
+      - "Pattern"
+      - "Email"
+      - "DecimalMin"
+      - "DecimalMax"
+      - "Positive"
+      - "PositiveOrZero"
+      - "Negative"
+      - "NegativeOrZero"
+      - "Past"
+      - "Future"
+      - "PastOrPresent"
+      - "FutureOrPresent"
+    framework: bean-validation
+    scope: field_or_parameter
+    category: validation
+    
+  # Custom validation
+  - type: annotation
+    names:
+      - "RequestBody"
+      - "PathVariable"
+      - "RequestParam"
+    framework: spring
+    scope: parameter
+    category: input-binding
