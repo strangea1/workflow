@@ -10,218 +10,226 @@ from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
+import logging
+
+logger = logging.getLogger(__name__)
+
+# =========================
+# 数据结构定义
+# =========================
+
+class SubFactor(BaseModel):
+    label: str = Field(description="子因子标签，如：权限提升")
+    score: float = Field(description="子因子分值（0~1）")
 
 
-def print_nested(data: Any, indent: int = 0) -> None:
-    prefix = "   " * indent
+class Factor(BaseModel):
+    score: float = Field(description="因子总分（等于所有子因子之和）")
+    sub_factors: Dict[str, SubFactor] = Field(description="子因子结构化评分")
+    details: str = Field(description="评分解释说明")
 
-    if isinstance(data, dict):
-        max_key_len = max(len(str(k)) for k in data.keys()) if data else 0
-
-        for k, v in data.items():
-            key_str = f"{k:<{max_key_len}}"
-
-            if isinstance(v, dict):
-                print(f"{prefix}{key_str}:")
-                print_nested(v, indent + 1)
-            elif isinstance(v, list):
-                print(f"{prefix}{key_str}: [")
-                print_nested(v, indent + 1)
-                print(f"{prefix}{' ' * max_key_len}]")
-            else:
-                print(f"{prefix}{key_str}: {v}")
-
-    elif isinstance(data, list):
-        for item in data:
-            print_nested(item, indent)
-
-    else:
-        print(f"{prefix}{data}")
+class RiskAssessmentResult(BaseModel):
+    project_name: str = Field(description="项目名称")
+    project_description: str = Field(description="项目描述")
+    
+    vul_name: str = Field(description="漏洞名称")
+    vul_id: str = Field(description="漏洞编号")
+    vul_cvss_score: str = Field(description="漏洞CVSS评分")
+    vul_type: str = Field(description="漏洞类型")
+    
+    f_vuln: Factor
+    f_threat: Factor
+    f_business: Factor
+    
+    risk_level: str = Field(description="风险等级：高危/中危/低危")
+    risk_assessment_process: str = Field(description="风险评估过程详细说明")
 
 
-def _clean_vul_name(name: Any) -> str:
-    if not isinstance(name, str):
-        return ""
-    s = re.sub(r"（.*?）", "", name)
-    s = re.sub(r"\(.*?\)", "", s)
-    return s.strip()
+# =========================
+# 校验逻辑
+# =========================
 
-
-def _extract_subfactor_scores(details: str, max_count: int | None = None) -> list[float]:
-    """从 details 文本中提取各子因子分值列表。
-
-    支持三种格式（优先级从高到低）：
-    格式1(列表-分值): - 因子名称：xxx；分值 X.XX 或 分值=X.XX
-    格式2(列表-括号): - 因子名称：标签（X.XX），说明（每行只取第一个括号值）
-    格式3(散文-括号): 因子名称为标签（X.XX），... 无列表标记的散文，提取每个括号数值
-    """
-    # 格式1：列表行中含「分值 X.XX」或「分值=X.XX」
-    line_scores: list[float] = []
-    for line in details.splitlines():
-        s = line.strip()
-        if not (s.startswith("-") or s.startswith("*")):
-            continue
-        m = re.search(r"分值[=\s]+([0-9]+(?:\.[0-9]+)?)", s)
-        if m:
-            line_scores.append(float(m.group(1)))
-    if line_scores:
-        if max_count is not None and max_count > 0 and len(line_scores) > max_count:
-            return line_scores[-max_count:]
-        return line_scores
-
-    # 格式2：列表行中含括号分值「（X.XX）」，每行只取第一个
-    bracket_line_scores: list[float] = []
-    for line in details.splitlines():
-        s = line.strip()
-        if not (s.startswith("-") or s.startswith("*")):
-            continue
-        m = re.search(r"[（(]([0-9]+(?:\.[0-9]+)?)[)）]", s)
-        if m:
-            bracket_line_scores.append(float(m.group(1)))
-    if bracket_line_scores:
-        if max_count is not None and max_count > 0 and len(bracket_line_scores) > max_count:
-            return bracket_line_scores[-max_count:]
-        return bracket_line_scores
-
-    # 格式3：散文格式，按句号/逗号分割，每句只取第一个括号数值
-    # 先按句子边界切分（。或换行），对每段提取第一个括号数值
-    prose_scores: list[float] = []
-    # 以「。」「\n」分句，也支持以「，」分割的情况（如「xxx（0.80），yyy（1.00）」）
-    # 改用贪心策略：扫描文本，找到「为xxx（X.XX）」模式，提取每个「为/选/是」后的括号分值
-    sentence_iter = re.finditer(
-        r"(?:为|选|是)[^。\n（(]{0,20}[（(]([0-9]+(?:\.[0-9]+)?)[)）]",
-        details,
-    )
-    for m in sentence_iter:
-        prose_scores.append(float(m.group(1)))
-    if prose_scores:
-        if max_count is not None and max_count > 0 and len(prose_scores) > max_count:
-            return prose_scores[-max_count:]
-        return prose_scores
-
-    # fallback：全文所有括号数值（去掉综合/总体得分行）
-    clean = re.sub(r"综合得分[^。\n]*。?", "", details)
-    clean = re.sub(r"总体得分[^。\n]*。?", "", clean)
-    matches = re.findall(r"[（(]([0-9]+(?:\.[0-9]+)?)[)）]", clean)
-    scores = [float(m) for m in matches]
-    if max_count is not None and max_count > 0 and len(scores) > max_count:
-        return scores[-max_count:]
-    return scores
-
-
-# 子因子 key 映射表
-_VULN_SUBFACTOR_KEYS = ["vuln_type", "reachability", "required_privilege", "exploit_complexity"]
-_THREAT_SUBFACTOR_KEYS = ["exploit_status", "intel_confidence", "patch_status", "related_threat_activity"]
-_BUSINESS_SUBFACTOR_KEYS = ["system_criticality", "business_impact", "impact_scope"]
-
-
-def _extract_sub_factors(details: str, keys: list[str]) -> dict:
-    """从 details 文本中按行提取子因子标签和分值，返回结构化字典。
-
-    支持多种 LLM 输出格式：
-    1. (列表-分值) - 因子名称：标签；分值 X.XX。判断依据：...
-    2. (列表-档位) - 因子名称：xxx；档位=标签，分值=X.XX。
-    3. (列表-括号) - 因子名称：标签（X.XX），补充说明。
-    4. (散文-括号) 因子名称为标签（X.XX），补充说明。（无列表行前缀）
-    """
-    result = {}
-    entries = []
-
-    # --- 先尝试列表格式（- 或 * 开头的行）---
-    for line in details.splitlines():
-        stripped = line.strip()
-        if not (stripped.startswith("-") or stripped.startswith("*")):
-            continue
-
-        # 提取分值
-        score_match = re.search(r"分值[=\s]+([0-9]+(?:\.[0-9]+)?)", stripped)
-        use_bracket = False
-        if not score_match:
-            score_match = re.search(r"[（(]([0-9]+(?:\.[0-9]+)?)[)）]", stripped)
-            use_bracket = score_match is not None
-        if not score_match:
-            continue
-        score = float(score_match.group(1))
-
-        # 提取标签
-        tier_match = re.search(r"档位[=\s]*([^，,；;。\n\uff08(]+)", stripped)
-        if tier_match:
-            label = tier_match.group(1).strip()
-        elif use_bracket:
-            colon_match = re.search(r"[\uff1a:]\s*([^\uff08(\n]+?)[\uff08(]", stripped)
-            label = colon_match.group(1).strip().rstrip("，,") if colon_match else ""
+def validate_factor(name: str, factor: Factor):
+    # 严格要求新形态：factor 必须为 Factor（pydantic）对象或可被解析成 Factor。
+    if not isinstance(factor, Factor):
+        # 尝试解析 dict 到 Factor，便于 pydantic 反序列化场景
+        if isinstance(factor, dict):
+            try:
+                factor = Factor.parse_obj(factor)
+            except Exception:
+                raise ValueError(f"{name} 必须为 Factor 格式，无法解析传入的 dict")
         else:
-            colon_match = re.search(r"[\uff1a:]\s*([^\uff1b;\n]+)[\uff1b;]", stripped)
-            label = colon_match.group(1).strip().rstrip("，,") if colon_match else ""
-        entries.append((label, score))
+            raise ValueError(f"{name} 必须为 Factor 类型，收到 {type(factor)}")
 
-    # --- 若列表格式未命中，改用散文格式（按「为/选/是」关键词定位）---
-    if not entries:
-        # 策略：按「。」或「\n」将散文分句，从每句中提取「标签（X.XX）」
-        # 每句只取第一个「xxx（X.XX）」，其中 xxx 为紧接括号前的非括号短文本
-        sentences = re.split(r"[。\n]", details)
-        for sent in sentences:
-            sent = sent.strip()
-            if not sent:
-                continue
-            # 跳过汇总句（综合得分/总体得分等）
-            if re.search(r"综合得分|总体得分", sent):
-                continue
-            # 在每句中找第一个「(X.XX)」
-            m_score = re.search(r"[（(]([0-9]+(?:\.[0-9]+)?)[)）]", sent)
-            if not m_score:
-                continue
-            score = float(m_score.group(1))
-            # 取括号前紧邻的非括号文本（最多20字）作为标签
-            before = sent[:m_score.start()]
-            # 去掉冒号及之前的因子名称前缀，只保留最后一段
-            label_match = re.search(r"(?:为|是|选择?)[^，,、为是选（(]{0,20}$", before)
-            if label_match:
-                # 去掉「为/是/选/选择」前导词
-                raw = label_match.group(0)
-                raw = re.sub(r"^(?:为|是|选择?)", "", raw)
-                label = raw.strip().strip("，,")
-            else:
-                # fallback：取最后一段非标点文本
-                label = re.sub(r".*[，,、]", "", before).strip()
-            entries.append((label, score))
-
-    for i, (label, score) in enumerate(entries):
-        key = keys[i] if i < len(keys) else f"sub_factor_{i}"
-        result[key] = {"label": label, "score": score}
-    return result
+    logging.info(f"Validating {name} with score {factor.score} and sub_factors {factor.sub_factors}")
+    
+    calc = sum(sf.score for sf in factor.sub_factors.values())
+    if abs(calc - factor.score) > 0.01:
+        raise ValueError(f"{name} 分数不一致: 声明={factor.score}, 实际={calc}")
 
 
-def _update_factor_total(details: str, total: float) -> str:
-    pattern = r"(总体得分为)\s*[0-9]+(?:\.[0-9]+)?"
-
-    def _repl(match: re.Match) -> str:
-        prefix = match.group(1)
-        return f"{prefix}{total:.1f}"
-
-    updated = re.sub(pattern, _repl, details)
-    if updated != details:
-        return updated
-    if total <= 0:
-        return details
-    base = details.rstrip()
-    if base and not base.endswith("。"):
-        base += "。"
-    return f"{base}\n总体得分为{total:.1f}。"
+def validate_result(result: RiskAssessmentResult):
+    validate_factor("f_vuln", result.f_vuln)
+    validate_factor("f_threat", result.f_threat)
+    validate_factor("f_business", result.f_business)
 
 
-def _update_summary_scores(process: str, f_vuln: float, f_threat: float, f_business: float) -> str:
-    def _repl(pattern: str, text: str, value: float) -> str:
-        return re.sub(
-            pattern,
-            lambda m: f"{m.group(1)}{value:.1f}",
-            text,
+
+
+# =========================
+# 输出展示
+# =========================
+
+def print_factor(name: str, factor: Factor):
+    logger.info(f"\n{name}: {factor.score:.2f}")
+
+    for k, v in factor.sub_factors.items():
+        logger.info(f"  - {k}: {v.label} ({v.score})")
+
+    logger.info(f"  说明: {factor.details}")
+
+
+def process_llm_response(result: RiskAssessmentResult):
+    validate_result(result)
+
+    
+    logger.info("\n==============================")
+    logger.info("漏洞风险评估结果")
+    logger.info("==============================")
+
+    logger.info(f"\n项目名称: {result.project_name}")
+    logger.info(f"项目描述: {result.project_description}")
+
+    logger.info(f"\n漏洞: {result.vul_name} ({result.vul_id})")
+    logger.info(f"CVSS: {result.vul_cvss_score}")
+    logger.info(f"类型: {result.vul_type}")
+
+    print_factor("漏洞属性因子", result.f_vuln)
+    print_factor("威胁情报因子", result.f_threat)
+    print_factor("业务属性因子", result.f_business)
+
+    logger.info(f"\n风险等级: {result.risk_level}")
+    logger.info("\n评估过程:")
+    logger.info(result.risk_assessment_process)
+
+
+# =========================
+# Prompt（保留格式化变量）
+# =========================
+
+RISK_ASSESSMENT_HUMAN_PROMPT = """
+**漏洞信息**
+漏洞名称: {vul_name}
+漏洞编号: {vul_id}
+漏洞CVSS评分: {vul_cvss_score}
+漏洞类型: {vul_type}
+
+漏洞风险描述: {vul_risk}
+漏洞产生原因: {vul_reason}
+漏洞触发条件: {vul_trigger_condition}
+是否存在补丁: {vul_patch_available}
+是否存在POC: {vul_poc_available}
+漏洞修复建议: {vul_fix_suggestion}
+
+**可达性分析**
+{reachability_info}
+
+**项目业务信息**
+项目名称: {project_name}
+项目整体角色: {project_overall_role}
+项目描述: {project_description}
+业务重要性分析: {business_importance_analysis}
+数据敏感性分析: {data_sensitivity_analysis}
+暴露面分析: {exposure_analysis}
+
+**组件信息**
+组件名称: {component_name}
+组件在项目中的角色: {component_role}
+组件重要性分析: {component_importance}
+组件数据敏感性分析: {component_data_sensitivity}
+组件攻击面分析: {component_attack_surface}
+组件影响分析:
+  - 服务可用性: {service_availability}
+  - 数据安全: {data_security}
+  - 合规影响: {compliance_impact}
+
+请根据以上信息进行风险评估，并严格按照 JSON 格式输出。
+
+【强制规则】
+1. 每个评分因子必须包含：
+   - score
+   - sub_factors
+   - details
+
+2. sub_factors key 必须如下：
+
+f_vuln:
+- vuln_type
+- reachability
+- required_privilege
+- exploit_complexity
+
+f_threat:
+- exploit_status
+- intel_confidence
+- patch_status
+- related_threat_activity
+
+f_business:
+- system_criticality
+- business_impact
+- impact_scope
+
+3. 每个子因子必须包含：
+   - label
+   - score（0~1）
+
+4. 必须满足：
+   score = 所有 sub_factors.score 之和
+
+5. 禁止：
+   - 缺失 sub_factors
+   - 在 details 中写唯一分数
+   - 输出额外字段
+   - 输出非 JSON 内容
+
+**[输出格式]**
+{format_instructions}
+"""
+
+
+# =========================
+# LLM 初始化
+# =========================
+
+
+def create_llm(
+    model: str,
+    api_key: str,
+    api_base: str | None,
+    verbose: bool,
+    api_key_source: str,
+    api_base_source: str,
+    model_source: str,
+) -> ChatOpenAI:
+    if verbose:
+        base_desc = f"{api_base} ({api_base_source})" if api_base else f"默认 OpenAI Base ({api_base_source})"
+        print(
+            "[Verbose] 使用 LLM 配置：",
+            f"model={model} ({model_source})",
+            f"api_key source={api_key_source}",
+            f"api_base={base_desc}",
         )
 
-    process = _repl(r"(漏洞属性因子（FVuln）得分为)\s*[0-9]+(?:\.[0-9]+)?", process, f_vuln)
-    process = _repl(r"(威胁情报因子（FThreat）得分为)\s*[0-9]+(?:\.[0-9]+)?", process, f_threat)
-    process = _repl(r"(业务属性因子（FBusiness）得分为)\s*[0-9]+(?:\.[0-9]+)?", process, f_business)
-    return process
+    return ChatOpenAI(
+        model=model,
+        temperature=0,
+        max_tokens=None,
+        api_key=api_key,
+        base_url=api_base,
+    )
+
+
 
 
 def load_prompt(prompt_dir: Path, prompt_filename: str) -> str:
@@ -231,6 +239,14 @@ def load_prompt(prompt_dir: Path, prompt_filename: str) -> str:
     if not prompt_path.is_file():
         raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
     return prompt_path.read_text(encoding="utf-8")
+
+
+def _clean_vul_name(name: Any) -> str:
+    if not isinstance(name, str):
+        return ""
+    s = re.sub(r"（.*?）", "", name)
+    s = re.sub(r"\(.*?\)", "", s)
+    return s.strip()
 
 
 def load_vulnerability_info(vul_dir: Path, cve_id: str, excel_path: Path) -> Dict[str, Any]:
@@ -345,152 +361,31 @@ def prepare_assessment_input(
         "format_instructions": parser.get_format_instructions(),
     }
 
+def print_nested(data: Any, indent: int = 0) -> None:
+    prefix = "   " * indent
 
-def process_llm_response(risk_result: "RiskAssessmentResult") -> None:
-    risk_result.vul_name = _clean_vul_name(risk_result.vul_name)
+    if isinstance(data, dict):
+        max_key_len = max(len(str(k)) for k in data.keys()) if data else 0
 
-    vuln_scores = _extract_subfactor_scores(risk_result.f_vuln_details, max_count=4)
-    threat_scores = _extract_subfactor_scores(risk_result.f_threat_details, max_count=4)
-    business_scores = _extract_subfactor_scores(risk_result.f_business_details, max_count=3)
+        for k, v in data.items():
+            key_str = f"{k:<{max_key_len}}"
 
-    f_vuln_score = sum(vuln_scores) if vuln_scores else 0.0
-    f_threat_score = sum(threat_scores) if threat_scores else 0.0
-    f_business_score = sum(business_scores) if business_scores else 0.0
+            if isinstance(v, dict):
+                print(f"{prefix}{key_str}:")
+                print_nested(v, indent + 1)
+            elif isinstance(v, list):
+                print(f"{prefix}{key_str}: [")
+                print_nested(v, indent + 1)
+                print(f"{prefix}{' ' * max_key_len}]")
+            else:
+                print(f"{prefix}{key_str}: {v}")
 
-    risk_result.f_vuln = f_vuln_score
-    risk_result.f_threat = f_threat_score
-    risk_result.f_business = f_business_score
+    elif isinstance(data, list):
+        for item in data:
+            print_nested(item, indent)
 
-    risk_result.f_vuln_details = _update_factor_total(risk_result.f_vuln_details, f_vuln_score)
-    risk_result.f_threat_details = _update_factor_total(risk_result.f_threat_details, f_threat_score)
-    risk_result.f_business_details = _update_factor_total(risk_result.f_business_details, f_business_score)
-
-    risk_result.risk_assessment_process = _update_summary_scores(
-        risk_result.risk_assessment_process,
-        f_vuln_score,
-        f_threat_score,
-        f_business_score,
-    )
-
-    print("风险评估完成！\n")
-    print("=" * 80)
-    print("漏洞风险评估结果")
-    print("=" * 80)
-    print(f"\n项目名称: {risk_result.project_name}")
-    print(f"项目描述: {risk_result.project_description}")
-    print(f"\n漏洞信息:")
-    print(f"  漏洞名称: {risk_result.vul_name}")
-    print(f"  漏洞编号: {risk_result.vul_id}")
-    print(f"  CVSS评分: {risk_result.vul_cvss_score}")
-    print(f"  漏洞类型: {risk_result.vul_type}")
-
-    print(f"\n评分因子:")
-    print(f"  漏洞属性因子 (FVuln): {risk_result.f_vuln:.2f}")
-    print(f"    详细说明: {risk_result.f_vuln_details}")
-    print(f"\n  威胁情报因子 (FThreat): {risk_result.f_threat:.2f}")
-    print(f"    详细说明: {risk_result.f_threat_details}")
-    print(f"\n  业务属性因子 (FBusiness): {risk_result.f_business:.2f}")
-    print(f"    详细说明: {risk_result.f_business_details}")
-
-    print(f"\n最终评估结果:")
-    print(f"  风险等级: {risk_result.risk_level}")
-    print(f"\n  评估过程:")
-    print(f"    {risk_result.risk_assessment_process}")
-
-    print("=" * 80)
-    print("\n" + "=" * 80)
-    print("结构化风险评估结果")
-    print("=" * 80)
-
-    result_dict = {
-        "project_name": risk_result.project_name,
-        "project_description": risk_result.project_description,
-        "vulnerability": {
-            "vul_name": risk_result.vul_name,
-            "vul_id": risk_result.vul_id,
-            "vul_cvss_score": risk_result.vul_cvss_score,
-            "vul_type": risk_result.vul_type,
-        },
-        "scoring_factors": {
-            "fvuln": {
-                "score": risk_result.f_vuln,
-                "sub_factors": _extract_sub_factors(risk_result.f_vuln_details, _VULN_SUBFACTOR_KEYS),
-            },
-            "fthreat": {
-                "score": risk_result.f_threat,
-                "sub_factors": _extract_sub_factors(risk_result.f_threat_details, _THREAT_SUBFACTOR_KEYS),
-            },
-            "fbusiness": {
-                "score": risk_result.f_business,
-                "sub_factors": _extract_sub_factors(risk_result.f_business_details, _BUSINESS_SUBFACTOR_KEYS),
-            },
-        },
-        "final_result": {
-            "risk_level": risk_result.risk_level,
-        },
-    }
-
-    print_nested(result_dict)
-
-
-class RiskAssessmentResult(BaseModel):
-    project_name: str = Field(description="项目名称")
-    project_description: str = Field(description="项目描述")
-    vul_name: str = Field(description="漏洞名称")
-    vul_id: str = Field(description="漏洞编号")
-    vul_cvss_score: str = Field(description="漏洞CVSS评分")
-    vul_type: str = Field(description="漏洞类型")
-    f_vuln: float = Field(description="漏洞属性因子得分（子因子之和）")
-    f_threat: float = Field(description="威胁情报因子得分（子因子之和）")
-    f_business: float = Field(description="业务属性因子得分（子因子之和）")
-    f_vuln_details: str = Field(description="漏洞属性因子详细评分说明")
-    f_threat_details: str = Field(description="威胁情报因子详细评分说明")
-    f_business_details: str = Field(description="业务属性因子详细评分说明")
-    risk_level: str = Field(description="风险等级：高危/中危/低危")
-    risk_assessment_process: str = Field(description="风险评估过程详细说明")
-
-
-RISK_ASSESSMENT_HUMAN_PROMPT = """
-**漏洞信息**
-漏洞名称: {vul_name}
-漏洞编号: {vul_id}
-漏洞CVSS评分: {vul_cvss_score}
-漏洞类型: {vul_type}
-
-漏洞风险描述: {vul_risk}
-漏洞产生原因: {vul_reason}
-漏洞触发条件: {vul_trigger_condition}
-是否存在补丁: {vul_patch_available}
-是否存在POC: {vul_poc_available}
-漏洞修复建议: {vul_fix_suggestion}
-
-**可达性分析**
-{reachability_info}
-
-**项目业务信息**
-项目名称: {project_name}
-项目整体角色: {project_overall_role}
-项目描述: {project_description}
-业务重要性分析: {business_importance_analysis}
-数据敏感性分析: {data_sensitivity_analysis}
-暴露面分析: {exposure_analysis}
-
-**组件信息**
-组件名称: {component_name}
-组件在项目中的角色: {component_role}
-组件重要性分析: {component_importance}
-组件数据敏感性分析: {component_data_sensitivity}
-组件攻击面分析: {component_attack_surface}
-组件影响分析:
-  - 服务可用性: {service_availability}
-  - 数据安全: {data_security}
-  - 合规影响: {compliance_impact}
-
-请根据以上信息，按照评分规则进行全面的风险评估。
-
-**[输出格式]**
-{format_instructions}
-"""
+    else:
+        print(f"{prefix}{data}")
 
 
 def parse_args(script_dir: Path) -> argparse.Namespace:
@@ -571,32 +466,6 @@ def parse_args(script_dir: Path) -> argparse.Namespace:
     return args
 
 
-def create_llm(
-    model: str,
-    api_key: str,
-    api_base: str | None,
-    verbose: bool,
-    api_key_source: str,
-    api_base_source: str,
-    model_source: str,
-) -> ChatOpenAI:
-    if verbose:
-        base_desc = f"{api_base} ({api_base_source})" if api_base else f"默认 OpenAI Base ({api_base_source})"
-        print(
-            "[Verbose] 使用 LLM 配置：",
-            f"model={model} ({model_source})",
-            f"api_key source={api_key_source}",
-            f"api_base={base_desc}",
-        )
-
-    return ChatOpenAI(
-        model=model,
-        temperature=0,
-        max_tokens=None,
-        api_key=api_key,
-        base_url=api_base,
-    )
-
 
 def main() -> None:
     script_dir = Path(__file__).resolve().parent
@@ -644,8 +513,97 @@ def main() -> None:
 
     print("输入数据已准备完成，开始风险评估...")
     print("正在调用 LLM 进行风险评估，请稍候...")
-    risk_result = risk_assessment_chain.invoke(assessment_input)
-    process_llm_response(risk_result)
+
+    # 重试与确定性回退逻辑
+    MAX_RETRIES = 3
+    attempt = 1
+    last_exception = None
+    last_candidate = None
+    risk_result = None
+
+    while attempt <= MAX_RETRIES:
+        try:
+            if attempt == 1:
+                logger.info("调用 LLM 风险评估（尝试 %d/%d）", attempt, MAX_RETRIES)
+                candidate = risk_assessment_chain.invoke(assessment_input)
+            else:
+                # 构造修正提示并请求 LLM 返回修正后的 JSON（只含 JSON）
+                logger.info("请求 LLM 对上次输出进行修正（尝试 %d/%d）", attempt, MAX_RETRIES)
+                fix_instructions = (
+                    "上次返回的 JSON 中存在因子 score 与其 sub_factors 之和不一致的问题。\n"
+                    "请仅返回修正后的完整 JSON，确保每个 factor 包含 score/details/sub_factors，且 score 等于子因子之和。"
+                    "不要输出额外文本。"
+                )
+
+                prev_str = None
+                if last_candidate is not None:
+                    try:
+                        prev_str = last_candidate.json(ensure_ascii=False)
+                    except Exception:
+                        try:
+                            prev_str = json.dumps(last_candidate, ensure_ascii=False)
+                        except Exception:
+                            prev_str = str(last_candidate)
+
+                fix_prompt = ChatPromptTemplate.from_messages([
+                    ("system", "请修正以下 JSON 输出中的不一致，并只输出修正后的 JSON，严格遵守 format_instructions。"),
+                    ("human", "{previous_output}\n\n{fix_instructions}\n\n{format_instructions}"),
+                ])
+                fix_chain = fix_prompt | chat_llm | risk_assessment_parser
+                candidate = fix_chain.invoke(
+                    {
+                        "previous_output": prev_str or "",
+                        "fix_instructions": fix_instructions,
+                        "format_instructions": risk_assessment_parser.get_format_instructions(),
+                    }
+                )
+
+            # 验证并展示
+            process_llm_response(candidate)  # 包含 validate_result
+            risk_result = candidate
+            break
+
+        except Exception as exc:
+            logger.warning("尝试 %d 失败: %s", attempt, exc)
+            last_exception = exc
+            last_candidate = candidate
+            attempt += 1
+
+    if risk_result is None:
+        logger.warning("达到重试上限，采用确定性回退（以子因子之和覆盖声明总分）并记录警告")
+        # 解析最后一次候选为 dict
+        if last_candidate is None:
+            raise RuntimeError("未能从 LLM 获得任何候选结果")
+
+        try:
+            payload = last_candidate.dict() if hasattr(last_candidate, "dict") else last_candidate
+        except Exception:
+            # 无法转成 dict，则转字符串并抛错
+            raise RuntimeError(f"无法解析最后一次 LLM 输出以用于回退: {last_candidate}")
+
+        # 对每个因子按 sub_factors 之和修正 score
+        for fk in ("f_vuln", "f_threat", "f_business"):
+            f = payload.get(fk)
+            if isinstance(f, dict):
+                sf = f.get("sub_factors") or {}
+                total = 0.0
+                for v in sf.values():
+                    if isinstance(v, dict):
+                        total += float(v.get("score", 0))
+                    else:
+                        total += float(getattr(v, "score", 0))
+                f["score"] = total
+
+        payload["_warning"] = "验证失败，已采用确定性回退：子因子之和覆盖声明总分（重试次数已达上限）"
+
+        # 尝试把 payload 解析为 RiskAssessmentResult
+        try:
+            risk_result = RiskAssessmentResult.parse_obj(payload)
+        except Exception as exc:
+            raise RuntimeError(f"回退后无法解析为 RiskAssessmentResult: {exc}")
+
+        # 最终校验（此时应当通过）
+        process_llm_response(risk_result)
 
 
 if __name__ == "__main__":

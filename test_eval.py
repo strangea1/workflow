@@ -78,7 +78,39 @@ def list_available_cves() -> None:
     print("=" * 60)
 
 
+def _extract_factor_payload(risk_result: RiskAssessmentResult, factor_attr: str, subfactor_keys) -> dict:
+    """仅支持新形态：factor 为 Factor 对象或等价 dict，必须包含 score/details/sub_factors。
+    返回标准化 dict: {score, details, sub_factors}
+    """
+    attr = getattr(risk_result, factor_attr, None)
+
+    if attr is None:
+        raise AttributeError(f"RiskAssessmentResult 缺少属性: {factor_attr}")
+
+    # 期望 attr 为 Factor 或等价 dict
+    if isinstance(attr, dict):
+        score = float(attr.get("score"))
+        details = attr.get("details", "")
+        sub_factors = attr.get("sub_factors", {}) or {}
+    else:
+        # pydantic 对象
+        score = float(getattr(attr, "score"))
+        details = getattr(attr, "details", "")
+        sf = getattr(attr, "sub_factors", {})
+        # 转换 pydantic 子对象为简单 dict
+        sub_factors = {
+            k: {"label": (v.label if hasattr(v, "label") else str(k)), "score": float(getattr(v, "score", 0))}
+            for k, v in sf.items()
+        }
+
+    return {"score": score, "details": details or "", "sub_factors": sub_factors}
+
+
 def build_risk_payload(risk_result: RiskAssessmentResult) -> dict:
+    f_vuln_payload = _extract_factor_payload(risk_result, "f_vuln", _VULN_SUBFACTOR_KEYS)
+    f_threat_payload = _extract_factor_payload(risk_result, "f_threat", _THREAT_SUBFACTOR_KEYS)
+    f_business_payload = _extract_factor_payload(risk_result, "f_business", _BUSINESS_SUBFACTOR_KEYS)
+
     return {
         "project_name": risk_result.project_name,
         "project_description": risk_result.project_description,
@@ -89,21 +121,9 @@ def build_risk_payload(risk_result: RiskAssessmentResult) -> dict:
             "vul_type": risk_result.vul_type,
         },
         "scoring_factors": {
-            "f_vuln": {
-                "score": risk_result.f_vuln,
-                "details": risk_result.f_vuln_details,
-                "sub_factors": _extract_sub_factors(risk_result.f_vuln_details, _VULN_SUBFACTOR_KEYS),
-            },
-            "f_threat": {
-                "score": risk_result.f_threat,
-                "details": risk_result.f_threat_details,
-                "sub_factors": _extract_sub_factors(risk_result.f_threat_details, _THREAT_SUBFACTOR_KEYS),
-            },
-            "f_business": {
-                "score": risk_result.f_business,
-                "details": risk_result.f_business_details,
-                "sub_factors": _extract_sub_factors(risk_result.f_business_details, _BUSINESS_SUBFACTOR_KEYS),
-            },
+            "f_vuln": f_vuln_payload,
+            "f_threat": f_threat_payload,
+            "f_business": f_business_payload,
         },
         "final_result": {
             "risk_level": risk_result.risk_level,
