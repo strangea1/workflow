@@ -7,11 +7,13 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 import pandas as pd
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from generate_vfind_tasks import generate_tasks
 from nvd_api import fetch_and_save_cve_list
@@ -28,7 +30,7 @@ from main import build_risk_payload, run_component_summarizer, run_module_locato
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 LOGGER = logging.getLogger(__name__)
 
-REQUEST_TIMEOUT = 30
+REQUEST_TIMEOUT = 60
 RAW_BASE = "https://raw.githubusercontent.com/{owner}/{repo}/{ref}/{path}"
 TAGS_API = "https://api.github.com/repos/{owner}/{repo}/tags"
 HEADERS = {
@@ -43,6 +45,23 @@ TREE_API = "https://api.github.com/repos/{owner}/{repo}/git/trees/{ref}?recursiv
 DEFAULT_DEBUG_DIR = "debug_output"
 DEFAULT_NVD_OUTPUT_DIR = "workflow_output/nvd"
 DEFAULT_EVAL_OUTPUT_DIR = "workflow_output/eval_runs"
+RETRY_STATUS_CODES = [429, 500, 502, 503, 504]
+BACKOFF_FACTOR = 1
+RETRY_TOTAL = 5
+GITHUB_RAW_CACHE_DIR = WORKSPACE_ROOT / "workflow_cache" / "github_raw"
+GITHUB_RAW_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+SESSION = requests.Session()
+SESSION.mount(
+    "https://",
+    HTTPAdapter(
+        max_retries=Retry(
+            total=RETRY_TOTAL,
+            backoff_factor=BACKOFF_FACTOR,
+            status_forcelist=RETRY_STATUS_CODES,
+            allowed_methods=frozenset(["GET"]),
+        )
+    ),
+)
 
 
 PYTHON_TARGET_COMPONENTS = [
@@ -176,6 +195,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--eval-excel-path", default=str(Path("eval") / "data_sort.xlsx"), help="风险评估辅助 Excel")
     parser.add_argument("--eval-risk-verbose", action="store_true", help="输出风险评估阶段调试信息")
     parser.add_argument("--vote", type=int, default=1, metavar="N", help="评估阶段向 LLM 发起 N 次请求并保存全部结果，默认 1（单次，保持原有行为）")
+    parser.add_argument("--skip-matching", action="store_true", help="若存在 output Excel，则跳过爬取/匹配，直接使用已有结果")
     return parser.parse_args()
 
 
@@ -219,15 +239,23 @@ def normalize_language(value: str) -> str:
     return mapping[language]
 
 
+def get_raw_cache_path(owner: str, repo: str, tag: str, path: str) -> Path:
+    path_obj = PurePosixPath(path)
+    safe_parts = [sanitize_filename(owner), sanitize_filename(repo), sanitize_filename(tag)]
+    for part in path_obj.parts:
+        safe_parts.append(sanitize_filename(part))
+    return GITHUB_RAW_CACHE_DIR.joinpath(*safe_parts)
+
+
 def http_get(url: str, headers: Optional[Dict[str, str]] = None) -> Tuple[int, str]:
     merged_headers = dict(HEADERS)
     if headers:
         merged_headers.update(headers)
     try:
-        resp = requests.get(url, headers=merged_headers, timeout=REQUEST_TIMEOUT)
+        resp = SESSION.get(url, headers=merged_headers, timeout=REQUEST_TIMEOUT)
         LOGGER.debug("HTTP GET %s -> %s", url, resp.status_code)
         return resp.status_code, resp.text
-    except Exception as exc:
+    except requests.RequestException as exc:
         LOGGER.warning("HTTP GET 失败 %s: %s", url, exc)
         return 0, str(exc)
 
@@ -287,10 +315,23 @@ def filter_candidate_files(paths: Iterable[str], patterns: Sequence[str]) -> Lis
 
 
 def fetch_raw_file(owner: str, repo: str, tag: str, path: str, headers: Dict[str, str]) -> Optional[str]:
+    cache_path = get_raw_cache_path(owner, repo, tag, path)
+    if cache_path.exists():
+        LOGGER.debug("来自缓存读取 %s", cache_path)
+        try:
+            return cache_path.read_text(encoding="utf-8")
+        except Exception as exc:
+            LOGGER.warning("读取缓存失败 %s: %s，尝试重新请求", cache_path, exc)
     raw_url = RAW_BASE.format(owner=owner, repo=repo, ref=tag, path=path)
     code, content = http_get(raw_url, headers=headers)
-    if code == 200:
+    if code == 200 and content:
         LOGGER.debug("成功读取文件 %s", raw_url)
+        try:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.write_text(content, encoding="utf-8")
+            LOGGER.debug("缓存 %s", cache_path)
+        except Exception as exc:
+            LOGGER.warning("缓存文件失败 %s: %s", cache_path, exc)
         return content
     LOGGER.debug("读取文件失败 %s -> %s", raw_url, code)
     return None
@@ -626,15 +667,21 @@ def call_openai_judge(base_url: str, api_key: str, model: str, component: str, v
         "temperature": 0,
     }
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+    response_text = ""
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=REQUEST_TIMEOUT)
+        response_text = response.text or ""
+        LOGGER.debug("LLM 原始响应 [%s]: %s", response.status_code, response_text[:1000])
         response.raise_for_status()
         data = response.json()
         content = data["choices"][0]["message"]["content"]
-        parsed = json.loads(content)
+        stripped_content = re.sub(r"^```(?:json)?\s*", "", content.strip(), flags=re.IGNORECASE)
+        stripped_content = re.sub(r"\s*```$", "", stripped_content)
+        parsed = json.loads(stripped_content)
         return bool(parsed.get("affected"))
     except Exception as exc:
-        LOGGER.warning("LLM 判断失败，已跳过：%s", exc)
+        details = f" response_text={response_text[:1000]}" if response_text else ""
+        LOGGER.warning("LLM 判断失败，已跳过：%s%s", exc, details)
         return None
 
 
@@ -1030,6 +1077,7 @@ def run_eval_pipeline(tasks: List[AnalysisTask], args: argparse.Namespace, debug
                 else component_summary
             )
             for vote_idx in range(vote_n):
+                logging.info("开始投票 %d/%d: %s %s", vote_idx + 1, vote_n, task.project, task.cve)
                 try:
                     risk_result_i = run_risk_assessment(
                         prompt_filename=args.eval_prompt_filename,
@@ -1121,23 +1169,30 @@ def main() -> None:
         LOGGER.info("CodeWiki 阶段完成，继续执行版本爬取与后处理流程")
 
     crawled_rows: List[Dict[str, str]] = []
-    for repo in projects:
-        repo_rows = crawl_project_versions(repo, args.top_tags, headers)
-        crawled_rows.extend(repo_rows)
-        repo_debug_name = sanitize_filename(f"{repo.project}_{repo.language}_crawl")
-        write_debug_dataframe(pd.DataFrame(repo_rows), debug_dir / f"{repo_debug_name}.xlsx", f"项目 {repo.project} 爬取结果")
 
-    crawled_df = pd.DataFrame(crawled_rows, columns=["Project", "Tag", "Component", "Version"])
-    write_debug_dataframe(crawled_df, debug_dir / "all_crawled_rows.xlsx", "全部爬取结果")
+    # 如果用户请求跳过匹配并且已有 output Excel，则直接加载并跳过爬取/匹配阶段
+    if getattr(args, "skip_matching", False) and Path(args.output_excel).is_file():
+        LOGGER.info("--skip-matching 启用：从已存在的输出文件加载结果: %s", args.output_excel)
+        result_df = pd.read_excel(args.output_excel)
+        crawled_df = pd.DataFrame([], columns=["Project", "Tag", "Component", "Version"])  # 占位，保持后续逻辑兼容
+    else:
+        for repo in projects:
+            repo_rows = crawl_project_versions(repo, args.top_tags, headers)
+            crawled_rows.extend(repo_rows)
+            repo_debug_name = sanitize_filename(f"{repo.project}_{repo.language}_crawl")
+            write_debug_dataframe(pd.DataFrame(repo_rows), debug_dir / f"{repo_debug_name}.xlsx", f"项目 {repo.project} 爬取结果")
 
-    result_df = build_result_dataframe(
-        crawled_rows,
-        cve_df,
-        args.openai_base_url,
-        args.openai_api_key,
-        args.openai_model,
-    )
-    write_debug_dataframe(result_df, debug_dir / "final_result_debug.xlsx", "最终结果")
+        crawled_df = pd.DataFrame(crawled_rows, columns=["Project", "Tag", "Component", "Version"])
+        write_debug_dataframe(crawled_df, debug_dir / "all_crawled_rows.xlsx", "全部爬取结果")
+
+        result_df = build_result_dataframe(
+            crawled_rows,
+            cve_df,
+            args.openai_base_url,
+            args.openai_api_key,
+            args.openai_model,
+        )
+        write_debug_dataframe(result_df, debug_dir / "final_result_debug.xlsx", "最终结果")
 
     if crawled_df.empty:
         LOGGER.warning("本次运行未爬取到任何组件记录，请优先检查 debug_output 下各项目 crawl 文件和 debug.log")
@@ -1150,9 +1205,11 @@ def main() -> None:
     append_debug_log(debug_dir, f"result written to {args.output_excel}, rows={len(result_df)}")
 
     if args.run_vfind or args.run_nvd:
+        LOGGER.info("开始 vfind/nvd 阶段")
         run_post_processing_pipeline(args, debug_dir)
 
     if args.run_eval:
+        LOGGER.info("开始 eval 分析阶段")
         tasks = build_analysis_tasks(projects, result_df)
         tasks_df = pd.DataFrame([task.__dict__ for task in tasks])
         write_debug_dataframe(tasks_df, debug_dir / "eval_tasks.xlsx", "eval 分析任务")

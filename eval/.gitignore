@@ -3,3 +3,5 @@
 *.log
 proj/*
 .claude
+debug_output
+__pycache__

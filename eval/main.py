@@ -32,6 +32,10 @@ from src.risk_asssignment import (
     process_llm_response,
 )
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 # 命名为当前时间
 import datetime
 OUTPUT_DIR_NAME = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -122,26 +126,117 @@ def run_risk_assessment(
         print("未提供有效的 business_factors 参数，正在从目录中读取历史数据...")
         business_factors = load_business_factors(business_dir, cve_id)
 
-    llm = create_llm(model, api_key, api_base, verbose, "cli", "cli", "cli")
-    parser = PydanticOutputParser(pydantic_object=RiskAssessmentResult)
+    chat_llm = create_llm(model, api_key, api_base, verbose, "cli", "cli", "cli")
+    risk_assessment_parser = PydanticOutputParser(pydantic_object=RiskAssessmentResult)
     prompt_template = ChatPromptTemplate.from_messages([
         ("system", prompt_text),
         ("human", RISK_ASSESSMENT_HUMAN_PROMPT),
     ])
-    chain = prompt_template | llm | parser
+    risk_assessment_chain = prompt_template | chat_llm | risk_assessment_parser
 
     assessment_input = prepare_assessment_input(
         vulnerability_info,
         reachability,
         business_factors,
-        parser,
+        risk_assessment_parser,
     )
-    risk_result = chain.invoke(assessment_input)
+
+    logging.info("输入数据已准备完成，开始风险评估...")
+    logging.info("正在调用 LLM 进行风险评估，请稍候...")
+
+    # 重试与确定性回退（以子因子之和覆盖声明总分）
+    MAX_RETRIES = 3
+    attempt = 1
+    last_candidate = None
+    last_exception = None
+
+    while attempt <= MAX_RETRIES:
+        try:
+            if attempt == 1:
+                print(f"调用 LLM 风险评估（尝试 {attempt}/{MAX_RETRIES}）")
+                candidate = risk_assessment_chain.invoke(assessment_input)
+            else:
+                print(f"请求 LLM 对上次输出进行修正（尝试 {attempt}/{MAX_RETRIES}）")
+                fix_instructions = (
+                    "上次返回的 JSON 中存在因子 score 与其 sub_factors 之和不一致的问题。\n"
+                    "请仅返回修正后的完整 JSON，确保每个 factor 包含 score/details/sub_factors，且 score 等于子因子之和。"
+                    "不要输出额外文本。"
+                )
+
+                prev_str = None
+                if last_candidate is not None:
+                    try:
+                        prev_str = last_candidate.json(ensure_ascii=False)
+                    except Exception:
+                        try:
+                            prev_str = json.dumps(last_candidate, ensure_ascii=False)
+                        except Exception:
+                            prev_str = str(last_candidate)
+
+                fix_prompt = ChatPromptTemplate.from_messages([
+                    ("system", "请修正以下 JSON 输出中的不一致，并只输出修正后的 JSON，严格遵守 format_instructions。"),
+                    ("human", "{previous_output}\n\n{fix_instructions}\n\n{format_instructions}"),
+                ])
+                fix_chain = fix_prompt | chat_llm | risk_assessment_parser
+                candidate = fix_chain.invoke(
+                    {
+                        "previous_output": prev_str or "",
+                        "fix_instructions": fix_instructions,
+                        "format_instructions": risk_assessment_parser.get_format_instructions(),
+                    }
+                )
+
+            # 验证并展示（包含 validate_result）
+            process_llm_response(candidate)
+            return candidate
+
+        except Exception as exc:
+            print(f"尝试 {attempt} 失败: {exc}")
+            last_exception = exc
+            last_candidate = candidate if 'candidate' in locals() else None
+            attempt += 1
+
+    # 达到重试上限，采用回退
+    print("达到重试上限，采用确定性回退（以子因子之和覆盖声明总分）并记录警告")
+    if last_candidate is None:
+        raise RuntimeError("未能从 LLM 获得任何候选结果")
+
+    try:
+        payload = last_candidate.dict() if hasattr(last_candidate, "dict") else last_candidate
+    except Exception:
+        raise RuntimeError(f"无法解析最后一次 LLM 输出以用于回退: {last_candidate}")
+
+    for fk in ("f_vuln", "f_threat", "f_business"):
+        f = payload.get(fk)
+        if isinstance(f, dict):
+            sf = f.get("sub_factors") or {}
+            total = 0.0
+            for v in sf.values():
+                if isinstance(v, dict):
+                    total += float(v.get("score", 0))
+                else:
+                    total += float(getattr(v, "score", 0))
+            f["score"] = total
+
+    payload["_warning"] = "验证失败，已采用确定性回退：子因子之和覆盖声明总分（重试次数已达上限）"
+
+    try:
+        risk_result = RiskAssessmentResult.parse_obj(payload)
+    except Exception as exc:
+        raise RuntimeError(f"回退后无法解析为 RiskAssessmentResult: {exc}")
+
     process_llm_response(risk_result)
     return risk_result
 
 
 def build_risk_payload(risk_result: RiskAssessmentResult) -> Dict[str, Any]:
+    def factor_to_payload(factor: Factor) -> Dict[str, Any]:
+        # factor is expected to be the new structured Factor (pydantic) with score/details/sub_factors
+        sf_dict: Dict[str, Dict[str, float]] = {}
+        for k, v in factor.sub_factors.items():
+            sf_dict[k] = {"label": v.label, "score": v.score}
+        return {"score": factor.score, "details": factor.details, "sub_factors": sf_dict}
+
     return {
         "project_name": risk_result.project_name,
         "project_description": risk_result.project_description,
@@ -152,18 +247,9 @@ def build_risk_payload(risk_result: RiskAssessmentResult) -> Dict[str, Any]:
             "vul_type": risk_result.vul_type,
         },
         "scoring_factors": {
-            "f_vuln": {
-                "score": risk_result.f_vuln,
-                "details": risk_result.f_vuln_details,
-            },
-            "f_threat": {
-                "score": risk_result.f_threat,
-                "details": risk_result.f_threat_details,
-            },
-            "f_business": {
-                "score": risk_result.f_business,
-                "details": risk_result.f_business_details,
-            },
+            "f_vuln": factor_to_payload(risk_result.f_vuln),
+            "f_threat": factor_to_payload(risk_result.f_threat),
+            "f_business": factor_to_payload(risk_result.f_business),
         },
         "final_result": {
             "risk_level": risk_result.risk_level,

@@ -1,0 +1,66 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.env
+.venv/
+venv/
+venv.bak/
+
+# IDEs / editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Python tooling caches
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Workflow outputs, caches and generated data
+workflow_output/
+debug_output/
+workflow_cache/
+result.xlsx
+result_*.xlsx
+target_repo/
+
+# Logs
+*.log
+debug.log
+
+# Claude/Worktree helper state
+.claude/
+.claude/worktrees/
+
+# Local secrets / config
+.env.local
+secrets.json
+*.key
+*.pem
+
+# compiled python files
+*.pyc
+
+# keep this file tracked
+!/.gitignore
