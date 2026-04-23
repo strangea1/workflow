@@ -17,7 +17,7 @@ from urllib3.util.retry import Retry
 
 from generate_vfind_tasks import generate_tasks
 from nvd_api import fetch_and_save_cve_list
-from run_codewiki_pipline import prepare_and_run_codewiki
+from run_codewiki_pipline import clone_repo, prepare_and_run_codewiki
 
 WORKSPACE_ROOT = Path(__file__).resolve().parent
 EVAL_DIR = WORKSPACE_ROOT / "eval"
@@ -65,11 +65,49 @@ SESSION.mount(
 
 
 PYTHON_TARGET_COMPONENTS = [
+    "urllib3",
+    "transformers",
+    "pandas",
+    "langchain",
     "torch",
+    "tensorflow",
+    "PyYAML",
+    "scikit-learn",
+    "numpy",
+    "scipy",
+    "joblib",
+    "pickle",
+    "fastapi",
+    "mlflow",
+    "opencv-python",
+    "Pillow",
 ]
 
 JAVA_TARGET_COMPONENTS: Dict[str, List[Tuple[str, str]]] = {
-    "jackson": [("com.fasterxml.jackson.core", "jackson-")],
+    "Spring Framework": [("org.springframework", "spring-core")],
+    "Spring Boot": [("org.springframework.boot", "spring-boot")],
+    "jackson": [("com.fasterxml.jackson.core", "jackson-databind")],
+    "Apache Tomcat": [("org.apache.tomcat", "tomcat-embed-core")],
+    "Apache Kafka": [("org.apache.kafka", "kafka-clients")],
+    "log4j": [("org.apache.logging.log4j", "log4j-core")],
+    "XStream": [("com.thoughtworks.xstream", "xstream")],
+    "Apache ActiveMQ": [("org.apache.activemq", "activemq-client")],
+    "Netty": [("io.netty", "netty-all")],
+    "fastjson2": [("com.alibaba.fastjson2", "fastjson2")],
+    "Apache Solr": [("org.apache.solr", "solr-core")],
+    "Apache Struts2": [("org.apache.struts", "struts2-core")],
+    "Apache FileUpload": [("commons-fileupload", "commons-fileupload")],
+    "Apache Shiro": [("org.apache.shiro", "shiro-core")],
+    "Dom4j": [("org.dom4j", "dom4j")],
+    "Apache Commons IO": [("commons-io", "commons-io")],
+    "myBatis": [("org.mybatis", "mybatis")],
+    "Apache Commons Text": [("org.apache.commons", "commons-text")],
+    "Apache XMLBeans": [("org.apache.xmlbeans", "xmlbeans")],
+    "Apache Commons BeanUtils": [("commons-beanutils", "commons-beanutils")],
+    "Apache Commons Collections": [("org.apache.commons", "commons-collections4")],
+    "Logback": [("ch.qos.logback", "logback-classic")],
+    "Groovy": [("org.apache.groovy", "groovy")],
+    "Jetty": [("org.eclipse.jetty", "jetty-server")],
 }
 
 PYTHON_CANDIDATE_FILES = [
@@ -783,17 +821,21 @@ def ensure_dependencies() -> None:
         raise RuntimeError(f"缺少依赖，请先安装: pip install {' '.join(missing)}")
 
 
-def run_codewiki_for_projects(projects: List[RepoInfo], debug_dir: Path) -> List[Dict[str, str]]:
+def run_codewiki_for_projects(projects: List[RepoInfo], debug_dir: Path, selected_tags: Optional[Dict[str, str]] = None) -> List[Dict[str, str]]:
     codewiki_rows: List[Dict[str, str]] = []
     for repo in projects:
+        if selected_tags is not None and repo.project not in selected_tags:
+            continue
+        ref = selected_tags.get(repo.project) if selected_tags is not None else None
         try:
             LOGGER.info("开始执行 CodeWiki: %s", repo.project)
-            repo_dir = prepare_and_run_codewiki(repo.url)
+            repo_dir = prepare_and_run_codewiki(repo.url, ref=ref)
             LOGGER.info("CodeWiki 执行完成: %s -> %s", repo.project, repo_dir)
             codewiki_rows.append(
                 {
                     "Project": repo.project,
                     "RepoURL": repo.url,
+                    "Tag": ref or "",
                     "RepoDir": str(repo_dir),
                     "Status": "success",
                 }
@@ -804,6 +846,7 @@ def run_codewiki_for_projects(projects: List[RepoInfo], debug_dir: Path) -> List
                 {
                     "Project": repo.project,
                     "RepoURL": repo.url,
+                    "Tag": ref or "",
                     "RepoDir": "",
                     "Status": f"failed: {exc}",
                 }
@@ -812,7 +855,7 @@ def run_codewiki_for_projects(projects: List[RepoInfo], debug_dir: Path) -> List
     return codewiki_rows
 
 
-def run_post_processing_pipeline(args: argparse.Namespace, debug_dir: Path) -> None:
+def run_post_processing_pipeline(args: argparse.Namespace, debug_dir: Path) -> List[Dict[str, str]]:
     cve_list: List[Dict[str, str]] = []
     if args.run_vfind:
         cve_list = generate_tasks(result_file=args.output_excel, data_file="DATA.xlsx")
@@ -822,11 +865,12 @@ def run_post_processing_pipeline(args: argparse.Namespace, debug_dir: Path) -> N
         if not cve_list:
             LOGGER.warning("run-nvd 已启用，但没有可用 cvelist，跳过 NVD 抓取")
             append_debug_log(debug_dir, "WARNING: run-nvd enabled but cvelist is empty")
-            return
+            return cve_list
         nvd_result = fetch_and_save_cve_list(cve_list, args.nvd_output_dir)
         write_debug_dataframe(pd.DataFrame(nvd_result.get("results", [])), debug_dir / "nvd_results.xlsx", "NVD 抓取结果")
         write_debug_dataframe(pd.DataFrame(nvd_result.get("failed", [])), debug_dir / "nvd_failed.xlsx", "NVD 抓取失败结果")
         append_debug_log(debug_dir, f"NVD summary written to {nvd_result.get('summary_path', '')}")
+    return cve_list
 
 
 def safe_read_json(path: Path) -> Optional[Dict[str, object]]:
@@ -943,20 +987,99 @@ def load_nvd_vulnerability_info(cve: str, nvd_output_dir: str) -> Optional[Dict[
     }
 
 
-def build_analysis_tasks(projects: List[RepoInfo], result_df: pd.DataFrame) -> List[AnalysisTask]:
+def split_cve_values(value: object) -> List[str]:
+    text = str(value) if value is not None else ""
+    parts = [item.strip() for item in text.split(",")]
+    return [item for item in parts if item]
+
+
+def load_triggered_cves_from_existing_vfind() -> Dict[str, Set[str]]:
+    cvelist_path = Path("workflow_output") / "cvelist" / "non_empty_sinks.json"
+    if not cvelist_path.is_file():
+        return {}
+    try:
+        text = cvelist_path.read_text(encoding="utf-8")
+        data = json.loads(text)
+    except Exception as exc:
+        LOGGER.warning("failed to load existing vfind cvelist from %s: %s", cvelist_path, exc)
+        return {}
+    triggered: Dict[str, Set[str]] = {}
+    if isinstance(data, list):
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            project_name = str(item.get("repo_name") or "").strip()
+            cve_id = str(item.get("cve_id") or "").strip()
+            if not project_name or not cve_id:
+                continue
+            project_set = triggered.setdefault(project_name, set())
+            project_set.add(cve_id)
+    return triggered
+
+
+def select_top_tags_by_triggered_cves(
+    result_df: pd.DataFrame,
+    triggered_cves_by_project: Dict[str, Set[str]],
+) -> Dict[str, str]:
+    project_tag_cves: Dict[str, Dict[str, Set[str]]] = {}
+    for _, row in result_df.iterrows():
+        project = str(row.get("Project", "")).strip()
+        tag = str(row.get("Tag", "")).strip()
+        if not project or not tag:
+            continue
+        triggered_set = triggered_cves_by_project.get(project)
+        if not triggered_set:
+            continue
+        cves = split_cve_values(row.get("CVE", ""))
+        matched = [cve for cve in cves if cve in triggered_set]
+        if not matched:
+            continue
+        tag_map = project_tag_cves.setdefault(project, {})
+        tag_set = tag_map.setdefault(tag, set())
+        for cve in matched:
+            tag_set.add(cve)
+    selected: Dict[str, str] = {}
+    for project, tag_map in project_tag_cves.items():
+        best_tag = ""
+        best_count = 0
+        for tag, cves in tag_map.items():
+            count = len(cves)
+            if count > best_count:
+                best_tag = tag
+                best_count = count
+        if best_tag and best_count > 0:
+            selected[project] = best_tag
+    return selected
+
+
+def build_analysis_tasks(
+    projects: List[RepoInfo],
+    result_df: pd.DataFrame,
+    selected_tags: Optional[Dict[str, str]] = None,
+    triggered_cves_by_project: Optional[Dict[str, Set[str]]] = None,
+) -> List[AnalysisTask]:
     repo_map = {repo.project: repo for repo in projects}
     tasks: List[AnalysisTask] = []
     for _, row in result_df.iterrows():
-        cves = [item.strip() for item in str(row.get("CVE", "")).split(",") if item.strip()]
+        cves = split_cve_values(row.get("CVE", ""))
         if not cves:
             continue
         project = str(row.get("Project", "")).strip()
+        tag = str(row.get("Tag", "")).strip()
+        if selected_tags is not None:
+            expected_tag = selected_tags.get(project)
+            if not expected_tag or tag != expected_tag:
+                continue
         repo = repo_map.get(project)
         if not repo:
             continue
         repo_dir = find_repo_dir_for_project(repo.project, repo.repo)
         docs_dir = resolve_docs_dir(repo_dir)
         for cve in cves:
+            if triggered_cves_by_project is not None:
+                triggered_set = triggered_cves_by_project.get(project)
+                if not triggered_set or cve not in triggered_set:
+                    continue
             vfind_json = find_vfind_result(project, cve)
             tasks.append(
                 AnalysisTask(
@@ -964,7 +1087,7 @@ def build_analysis_tasks(projects: List[RepoInfo], result_df: pd.DataFrame) -> L
                     repo_url=repo.url,
                     repo_name=repo.repo,
                     language=repo.language,
-                    tag=str(row.get("Tag", "")).strip(),
+                    tag=tag,
                     component=str(row.get("Component", "")).strip(),
                     version=str(row.get("Version", "")).strip(),
                     cve=cve,
@@ -1163,7 +1286,7 @@ def main() -> None:
     write_debug_dataframe(pd.DataFrame([vars(repo) for repo in projects]), debug_dir / "projects_loaded.xlsx", "已加载项目")
     write_debug_dataframe(cve_df, debug_dir / "cve_loaded.xlsx", "已加载CVE数据")
 
-    if args.run_codewiki:
+    if args.run_codewiki and not args.run_eval:
         codewiki_rows = run_codewiki_for_projects(projects, debug_dir)
         write_debug_dataframe(pd.DataFrame(codewiki_rows), debug_dir / "codewiki_runs.xlsx", "CodeWiki 执行结果")
         LOGGER.info("CodeWiki 阶段完成，继续执行版本爬取与后处理流程")
@@ -1204,21 +1327,54 @@ def main() -> None:
     result_df.to_excel(args.output_excel, index=False)
     append_debug_log(debug_dir, f"result written to {args.output_excel}, rows={len(result_df)}")
 
+    triggered_cves_by_project: Dict[str, Set[str]] = {}
+    if args.run_vfind:
+        for repo in projects:
+            try:
+                clone_repo(repo.url)
+            except Exception as exc:
+                LOGGER.warning("clone repo failed for %s: %s", repo.project, exc)
+
+    vfind_cve_list: List[Dict[str, str]] = []
     if args.run_vfind or args.run_nvd:
         LOGGER.info("开始 vfind/nvd 阶段")
-        run_post_processing_pipeline(args, debug_dir)
+        vfind_cve_list = run_post_processing_pipeline(args, debug_dir)
+        for item in vfind_cve_list or []:
+            project_name = str(item.get("repo_name") or "").strip()
+            cve_id = str(item.get("cve_id") or "").strip()
+            if not project_name or not cve_id:
+                continue
+            project_set = triggered_cves_by_project.setdefault(project_name, set())
+            project_set.add(cve_id)
 
+    if args.run_eval and not args.run_vfind and not triggered_cves_by_project:
+        resumed_triggered = load_triggered_cves_from_existing_vfind()
+        if resumed_triggered:
+            triggered_cves_by_project = resumed_triggered
+            append_debug_log(
+                debug_dir,
+                "Resumed triggered CVEs from existing workflow_output/cvelist/non_empty_sinks.json",
+            )
+
+    selected_tags: Dict[str, str] = {}
     if args.run_eval:
         LOGGER.info("开始 eval 分析阶段")
-        tasks = build_analysis_tasks(projects, result_df)
-        tasks_df = pd.DataFrame([task.__dict__ for task in tasks])
-        write_debug_dataframe(tasks_df, debug_dir / "eval_tasks.xlsx", "eval 分析任务")
-        eval_df = run_eval_pipeline(tasks, args, debug_dir)
-        write_debug_dataframe(eval_df, debug_dir / "eval_results.xlsx", "eval 阶段结果")
-        final_assessment_path = Path("workflow_output") / "final_assessment.xlsx"
-        final_assessment_path.parent.mkdir(parents=True, exist_ok=True)
-        eval_df.to_excel(final_assessment_path, index=False)
-        append_debug_log(debug_dir, f"final assessment written to {final_assessment_path}, rows={len(eval_df)}")
+        if triggered_cves_by_project:
+            selected_tags = select_top_tags_by_triggered_cves(result_df, triggered_cves_by_project)
+        if args.run_codewiki and selected_tags:
+            filtered_projects = [repo for repo in projects if repo.project in selected_tags]
+            codewiki_rows = run_codewiki_for_projects(filtered_projects, debug_dir, selected_tags)
+            write_debug_dataframe(pd.DataFrame(codewiki_rows), debug_dir / "codewiki_runs.xlsx", "CodeWiki 执行结果")
+        if selected_tags:
+            tasks = build_analysis_tasks(projects, result_df, selected_tags=selected_tags, triggered_cves_by_project=triggered_cves_by_project)
+            tasks_df = pd.DataFrame([task.__dict__ for task in tasks])
+            write_debug_dataframe(tasks_df, debug_dir / "eval_tasks.xlsx", "eval 分析任务")
+            eval_df = run_eval_pipeline(tasks, args, debug_dir)
+            write_debug_dataframe(eval_df, debug_dir / "eval_results.xlsx", "eval 阶段结果")
+            final_assessment_path = Path("workflow_output") / "final_assessment.xlsx"
+            final_assessment_path.parent.mkdir(parents=True, exist_ok=True)
+            eval_df.to_excel(final_assessment_path, index=False)
+            append_debug_log(debug_dir, f"final assessment written to {final_assessment_path}, rows={len(eval_df)}")
 
     LOGGER.info("完成，结果已写入 %s；调试文件目录：%s", args.output_excel, debug_dir)
 

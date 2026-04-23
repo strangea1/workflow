@@ -30,18 +30,29 @@ def sanitize_repo_name(repo_url: str) -> str:
     return name or "unknown_repo"
 
 
-def clone_repo(repo_url: str, clone_root: str | Path = TARGET_REPO_ROOT) -> Path:
+def clone_repo(repo_url: str, clone_root: str | Path = TARGET_REPO_ROOT, ref: str | None = None) -> Path:
     clone_root = Path(clone_root)
     clone_root.mkdir(parents=True, exist_ok=True)
     repo_name = sanitize_repo_name(repo_url)
     repo_dir = clone_root / repo_name
 
     if repo_dir.exists():
-        print(f"[INFO] Repo exists, pulling latest: {repo_dir}")
-        subprocess.run(["git", "-C", str(repo_dir), "pull"], check=True)
+        print(f"[INFO] Repo exists: {repo_dir}")
+        if ref:
+            print("[INFO] Ref specified, skip git pull and use explicit fetch/checkout")
+        else:
+            print(f"[INFO] Pulling latest changes in {repo_dir}")
+            completed = subprocess.run(["git", "-C", str(repo_dir), "pull"], check=False)
+            if completed.returncode != 0:
+                print(f"[WARN] git pull failed with code {completed.returncode}, continue with existing repo")
     else:
         print(f"[INFO] Cloning repo to {repo_dir} ...")
         subprocess.run(["git", "clone", repo_url, str(repo_dir)], check=True)
+
+    if ref:
+        print(f"[INFO] Checking out ref {ref} in {repo_dir}")
+        subprocess.run(["git", "-C", str(repo_dir), "fetch", "--all"], check=True)
+        subprocess.run(["git", "-C", str(repo_dir), "checkout", ref], check=True)
 
     return repo_dir
 
@@ -155,8 +166,8 @@ def run_codewiki(repo_dir: str | Path) -> None:
         print(f"[INFO] Returned to: {original_dir}")
 
 
-def prepare_and_run_codewiki(repo_url: str, clone_root: str | Path = TARGET_REPO_ROOT) -> Path:
-    repo_dir = clone_repo(repo_url, clone_root)
+def prepare_and_run_codewiki(repo_url: str, clone_root: str | Path = TARGET_REPO_ROOT, ref: str | None = None) -> Path:
+    repo_dir = clone_repo(repo_url, clone_root, ref=ref)
     clean_repo(repo_dir)
     patch_open()
     patch_tiktoken()
