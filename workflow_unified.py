@@ -210,6 +210,157 @@ class AnalysisTask:
     docs_dir: Optional[str]
     vfind_json_path: Optional[str]
 
+from collections import Counter, defaultdict
+import statistics
+
+def aggregate_votes(vote_results: List[Dict[str, object]]) -> Dict[str, object]:
+    valid_votes = [
+        v for v in vote_results
+        if isinstance(v, dict) and "final_result" in v
+    ]
+    if not valid_votes:
+        return {}
+
+    # -----------------------------
+    # 工具函数：多数 or 平均
+    # -----------------------------
+    def majority_or_average(values: List[float]):
+        if not values:
+            return None
+
+        # 👉 防止浮点抖动（非常关键）
+        rounded_vals = [round(v, 2) for v in values]
+
+        counter = Counter(rounded_vals)
+        top_value, top_count = counter.most_common(1)[0]
+
+        if top_count > len(rounded_vals) / 2:
+            return top_value
+        else:
+            return round(statistics.mean(rounded_vals), 2)
+
+    # -----------------------------
+    # 提取 score
+    # -----------------------------
+    def extract_scores(key: str):
+        vals = []
+        for v in valid_votes:
+            try:
+                score = v.get("scoring_factors", {}).get(key, {}).get("score")
+                if score is not None:
+                    vals.append(float(score))
+            except Exception:
+                continue
+        return vals
+
+    # -----------------------------
+    # 聚合 sub_factors（核心新增）
+    # -----------------------------
+    def aggregate_sub_factors(factor_key: str):
+        sub_factor_values = defaultdict(list)
+        sub_factor_labels = {}
+
+        for v in valid_votes:
+            sub = v.get("scoring_factors", {}).get(factor_key, {}).get("sub_factors", {})
+            for name, item in sub.items():
+                try:
+                    score = item.get("score")
+                    if score is not None:
+                        sub_factor_values[name].append(float(score))
+                        sub_factor_labels[name] = item.get("label", name)
+                except Exception:
+                    continue
+
+        result = {}
+        for name, values in sub_factor_values.items():
+            result[name] = {
+                "label": sub_factor_labels.get(name, name),
+                "score": majority_or_average(values)
+            }
+
+        return result
+
+    # -----------------------------
+    # 1. 主 factors（多数 or 平均）
+    # -----------------------------
+    f_vuln_scores = extract_scores("f_vuln")
+    f_threat_scores = extract_scores("f_threat")
+    f_business_scores = extract_scores("f_business")
+
+    final_f_vuln = majority_or_average(f_vuln_scores)
+    final_f_threat = majority_or_average(f_threat_scores)
+    final_f_business = majority_or_average(f_business_scores)
+
+    # -----------------------------
+    # 2. sub_factors 聚合
+    # -----------------------------
+    sub_vuln = aggregate_sub_factors("f_vuln")
+    sub_threat = aggregate_sub_factors("f_threat")
+    sub_business = aggregate_sub_factors("f_business")
+
+    # -----------------------------
+    # 3. risk_level（多数 or 未达成一致）
+    # -----------------------------
+    risk_levels = [
+        v.get("final_result", {}).get("risk_level")
+        for v in valid_votes
+        if v.get("final_result", {}).get("risk_level")
+    ]
+
+    counter = Counter(risk_levels)
+
+    final_risk = "未取得共识"
+    if counter:
+        top_label, top_count = counter.most_common(1)[0]
+        if top_count > len(risk_levels) / 2:
+            final_risk = top_label
+
+    # -----------------------------
+    # 4. 构造最终结构
+    # -----------------------------
+    base = valid_votes[0]
+
+    aggregated = {
+        "project_name": base.get("project_name"),
+        "project_description": base.get("project_description"),
+        "vulnerability": base.get("vulnerability"),
+
+        "scoring_factors": {
+            "f_vuln": {
+                "score": final_f_vuln,
+                "sub_factors": sub_vuln
+            },
+            "f_threat": {
+                "score": final_f_threat,
+                "sub_factors": sub_threat
+            },
+            "f_business": {
+                "score": final_f_business,
+                "sub_factors": sub_business
+            }
+        },
+
+        "final_result": {
+            "risk_level": final_risk,
+            "assessment_process": (
+                f"基于{len(valid_votes)}次投票结果聚合："
+                f"所有分数（含子因子）采用多数优先否则平均；"
+                f"风险等级采用多数，否则标记为未取得共识"
+            )
+        },
+
+        "aggregation": {
+            "vote_count": len(valid_votes),
+            "risk_distribution": dict(counter),
+            "method": {
+                "score": "majority_or_average",
+                "risk_level": "majority_or_unresolved"
+            }
+        }
+    }
+
+    return aggregated
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Crawl recent component versions and match CVEs into Excel.")
@@ -1242,7 +1393,8 @@ def run_eval_pipeline(tasks: List[AnalysisTask], args: argparse.Namespace, debug
                 )
 
             # use the first result as the representative value (single-run behaviour unchanged)
-            risk_payload = vote_results[0] if vote_results else {}
+            
+            risk_payload = aggregate_votes(vote_results)
             # -------------------------------------------------------------------
 
             final_record = {
@@ -1257,9 +1409,9 @@ def run_eval_pipeline(tasks: List[AnalysisTask], args: argparse.Namespace, debug
             (task_dir / "final_record.json").write_text(json.dumps(final_record, ensure_ascii=False, indent=2), encoding="utf-8")
 
             row["RiskLevel"] = risk_payload.get("final_result", {}).get("risk_level", "")
-            row["FVuln"] = risk_payload.get("scoring_factors", {}).get("fvuln", {}).get("score", "")
-            row["FThreat"] = risk_payload.get("scoring_factors", {}).get("fthreat", {}).get("score", "")
-            row["FBusiness"] = risk_payload.get("scoring_factors", {}).get("fbusiness", {}).get("score", "")
+            row["FVuln"] = risk_payload.get("scoring_factors", {}).get("f_vuln", {}).get("score", "")
+            row["FThreat"] = risk_payload.get("scoring_factors", {}).get("f_threat", {}).get("score", "")
+            row["FBusiness"] = risk_payload.get("scoring_factors", {}).get("f_business", {}).get("score", "")
             row["VoteN"] = vote_n
             row["Status"] = "success"
         except Exception as exc:
