@@ -1313,7 +1313,7 @@ def run_eval_pipeline(tasks: List[AnalysisTask], args: argparse.Namespace, debug
                 repo=task.project,
                 cve=task.cve,
                 filepath=str(vfind_info["filepath"]),
-                snippet_size=10,
+                snippet_size=-1,
                 model=model,
                 api_key=shared_api_key,
                 base_url=shared_base_url,
