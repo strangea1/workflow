@@ -31,7 +31,11 @@ def run(args):
     sink_path = _vfind_result_path(args)
     Path(sink_path).parent.mkdir(parents=True, exist_ok=True)
 
-    user_input = f"Analyze vulnerability materials in {args.bundle} and locate sinks in {args.repo}. Use recon index {args.recon}."
+    # 用绝对路径，避免 opencode CWD（项目目录）与工作流根的相对路径混淆导致路径重复
+    bundle_abs = str(Path(args.bundle).resolve())
+    repo_abs = str(Path(args.repo).resolve())
+    recon_abs = str(Path(args.recon).resolve())
+    user_input = f"Analyze vulnerability materials in {bundle_abs} and locate sinks in {repo_abs}. Use recon index {recon_abs}."
 
     agent = VulnerabilityAnalystAgent()
     result = agent.run(

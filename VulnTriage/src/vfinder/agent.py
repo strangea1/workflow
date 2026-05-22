@@ -225,7 +225,7 @@ Follow AGENTS.md. When finished, the vulnerability analysis JSON must exist on d
 
         opencode_cmd = os.environ.get(
             "OPENCODE_CMD",
-            r"C:\Users\A\scoop\apps\nodejs\current\bin\opencode.CMD"
+            "/home/hqs/.npm-global/node_modules/.bin/opencode"
         )
         if not cli_executable_exists(opencode_cmd):
             raise RuntimeError(
@@ -241,17 +241,27 @@ Follow AGENTS.md. When finished, the vulnerability analysis JSON must exist on d
 
 Follow AGENTS.md. When finished, the vulnerability analysis JSON must exist on disk at the path documented in AGENTS.md (output_path / OUTPUT_PATH), not only in chat."""
 
+        extra_allow = [output_path, vuln_dir, recon_file]
+        if output_path:
+            # opencode bash 用相对路径 ../../workflow_output/... 写文件时，
+            # 会遍历 project_path 与 output_path 之间的所有中间目录。
+            # 把两者的公共祖先（workflow 根）也加进 allow list，
+            # 避免中间目录层被 auto-reject。
+            op = Path(resolve_path_for_cli_env(str(output_path)))
+            common = Path(os.path.commonpath([str(project_path.resolve()), str(op)]))
+            extra_allow.append(str(common))
         merge_opencode_external_directory_allow(
             project_path,
-            llm_cli_parent_dirs_outside_project(
-                project_path, [output_path, vuln_dir, recon_file]
-            ),
+            llm_cli_parent_dirs_outside_project(project_path, extra_allow),
         )
         # --dir: project root for config/AGENTS.md; complements subprocess cwd (needed when using
         # e.g. --attach, where the child cwd may not define OpenCode's project context).
         cmd: List[str] = [opencode_cmd, "run", "--dir", str(project_path)]
         model = os.environ.get("OPENCODE_MODEL", "").strip()
         if model:
+            # opencode 要求格式 provider/model；裸 model 名会在参数解析阶段崩溃（EBADF）
+            if "/" not in model:
+                model = f"openai/{model}"
             cmd.extend(["-m", model])
         agent_name = os.environ.get("OPENCODE_AGENT", "").strip()
         if agent_name:

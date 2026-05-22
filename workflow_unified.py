@@ -63,6 +63,9 @@ SESSION.mount(
     ),
 )
 
+# CISA KEV 目录缓存（None = 未加载，set() = 加载失败或空）
+_KEV_CATALOG: Optional[Set[str]] = None
+
 
 PYTHON_TARGET_COMPONENTS = [
     "urllib3",
@@ -108,6 +111,32 @@ JAVA_TARGET_COMPONENTS: Dict[str, List[Tuple[str, str]]] = {
     "Logback": [("ch.qos.logback", "logback-classic")],
     "Groovy": [("org.apache.groovy", "groovy")],
     "Jetty": [("org.eclipse.jetty", "jetty-server")],
+}
+
+COMPONENT_DESCRIPTION_ALIASES: Dict[str, Tuple[str, ...]] = {
+    "jackson": ("jackson", "jackson-core", "jackson-databind", "jackson-dataformats"),
+    "torch": ("torch", "pytorch"),
+    "groovy": ("groovy",),
+    "apachegroovy": ("groovy",),
+    "log4j": ("log4j",),
+    "apachelog4j": ("log4j",),
+    "apacheshiro": ("shiro",),
+    "shiro": ("shiro",),
+    "apachetomcat": ("tomcat",),
+    "tomcat": ("tomcat",),
+    "springboot": ("spring boot", "spring-boot"),
+    "apachecommonsbeanutils": ("commons-beanutils", "beanutils"),
+    "jetty": ("jetty",),
+    "logback": ("logback",),
+}
+
+# 描述首句中必须出现这些关键词，才认为 CVE 的漏洞主体是该组件（而非使用了该组件的上层应用）
+# 若某组件名不在此表，则不做主体过滤
+COMPONENT_SUBJECT_KEYWORDS: Dict[str, Tuple[str, ...]] = {
+    "groovy": ("groovy",),
+    "apachegroovy": ("groovy",),
+    "log4j": ("log4j",),
+    "apachelog4j": ("log4j",),
 }
 
 PYTHON_CANDIDATE_FILES = [
@@ -185,6 +214,26 @@ ANT_IVY_REGEX = re.compile(
     r'(?:org|group)\s*=\s*"([^"]+)"[^\n>]*(?:name)\s*=\s*"([^"]+)"[^\n>]*(?:rev|version)\s*=\s*"([^"]+)"',
     re.IGNORECASE,
 )
+
+VERSION_TEXT_REGEX = re.compile(r"\d+\.\d+(?:\.\d+){0,3}")
+EXPLICIT_RANGE_HINTS = ("before", "prior to", "through", "up to", "upto", "starting in version", "from ")
+START_BEFORE_RANGE_REGEX = re.compile(
+    r"starting in version\s+(?P<lower>\d+\.\d+(?:\.\d+){0,3})\s+and\s+(?P<mode>prior to|before)\s+version\s+(?P<upper>\d+\.\d+(?:\.\d+){0,3})",
+    re.IGNORECASE,
+)
+GENERIC_BOUNDED_RANGE_REGEX = re.compile(
+    r"(?:from\s+)?(?P<lower>\d+\.\d+(?:\.\d+){0,3})\s+through\s+(?P<upper>\d+\.\d+(?:\.\d+){0,3})",
+    re.IGNORECASE,
+)
+BRANCH_BEFORE_REGEX = re.compile(
+    r"(?P<branch>\d+(?:\.\d+)*)\.x\s+before\s+(?P<upper>\d+\.\d+(?:\.\d+){0,3})",
+    re.IGNORECASE,
+)
+GENERIC_UPPER_BOUND_REGEX = re.compile(
+    r"(?P<mode>before|prior to|through|up to|upto)\s+(?:versions?\s+)?(?P<upper>\d+\.\d+(?:\.\d+){0,3})",
+    re.IGNORECASE,
+)
+LLM_JUDGE_CACHE: Dict[Tuple[str, str, str], Optional[bool]] = {}
 
 
 @dataclass
@@ -545,7 +594,8 @@ def list_recent_tags(owner: str, repo: str, top_n: int, headers: Dict[str, str])
             break
         for item in data:
             name = item.get("name") if isinstance(item, dict) else None
-            if name:
+            # 跳过不含数字的 tag（如 "zookeeper-"），这类 tag 通常是无意义的占位符
+            if name and re.search(r"\d", name):
                 tags.append(name)
                 if len(tags) >= top_n:
                     break
@@ -754,9 +804,12 @@ def crawl_java_tag(owner: str, repo: str, tag: str, headers: Dict[str, str]) -> 
             contents[path] = content
             if path.endswith("gradle.properties"):
                 collected_properties.update(parse_gradle_properties(content))
+            elif path.endswith("pom.xml"):
+                # 先收集所有 pom 的 properties，供后续子模块 pom 解析时使用
+                collected_properties.update(parse_maven_properties(content))
     for path, content in contents.items():
         if path.endswith("pom.xml"):
-            versions = parse_pom_dependencies(content)
+            versions = parse_pom_dependencies(content, collected_properties)
         elif path.endswith("build.gradle") or path.endswith("build.gradle.kts"):
             versions = parse_gradle_dependencies(content, collected_properties)
         elif path.endswith("build.xml") or path.endswith("ivy.xml"):
@@ -825,28 +878,162 @@ def normalize_component_name(name: str) -> str:
     return re.sub(r"\s+", "", str(name).strip().lower())
 
 
-def simple_version_matches(description: str, version: str) -> bool:
+def component_description_aliases(component: str) -> Tuple[str, ...]:
+    return COMPONENT_DESCRIPTION_ALIASES.get(normalize_component_name(component), ())
+
+
+def _component_subject_keywords(component: str) -> Tuple[str, ...]:
+    return COMPONENT_SUBJECT_KEYWORDS.get(normalize_component_name(component), ())
+
+
+def description_mentions_component(component: str, description: str) -> bool:
+    desc = str(description).strip().lower()
+    aliases = component_description_aliases(component)
+    # 无别名配置时，用组件规范名本身做关键词，不再直接放行
+    if not aliases:
+        norm = normalize_component_name(component)
+        return norm in desc
+    if not any(alias in desc for alias in aliases):
+        return False
+    # 对于容易产生"上层应用误匹配"的组件（Groovy/log4j等），
+    # 额外要求描述的首句中就出现组件关键词，过滤掉"使用了该技术的上层应用漏洞"
+    subject_keywords = _component_subject_keywords(component)
+    if subject_keywords:
+        first_sentence = re.split(r"(?<=[.!?])\s+|\n+", desc)[0]
+        if not any(kw in first_sentence for kw in subject_keywords):
+            return False
+    return True
+
+
+def extract_component_context(component: str, description: str) -> str:
+    desc = str(description).strip()
+    aliases = component_description_aliases(component)
+    if not desc:
+        return desc
+    if not aliases:
+        return desc
+    sentences = re.split(r"(?<=[.!?])\s+|\n+", desc)
+    matched = [sentence for sentence in sentences if any(alias in sentence.lower() for alias in aliases)]
+    return " ".join(matched) if matched else desc
+
+
+def parse_version_parts(version: str) -> Tuple[int, ...]:
+    normalized = normalize_version(version)
+    if not normalized:
+        return ()
+    try:
+        return tuple(int(part) for part in normalized.split("."))
+    except ValueError:
+        return ()
+
+
+def compare_versions(left: str, right: str) -> int:
+    left_parts = parse_version_parts(left)
+    right_parts = parse_version_parts(right)
+    if not left_parts or not right_parts:
+        left_norm = normalize_version(left)
+        right_norm = normalize_version(right)
+        if left_norm == right_norm:
+            return 0
+        return -1 if left_norm < right_norm else 1
+    max_len = max(len(left_parts), len(right_parts))
+    padded_left = left_parts + (0,) * (max_len - len(left_parts))
+    padded_right = right_parts + (0,) * (max_len - len(right_parts))
+    if padded_left == padded_right:
+        return 0
+    return -1 if padded_left < padded_right else 1
+
+
+def version_matches_branch(version: str, branch: str) -> bool:
+    version_parts = parse_version_parts(version)
+    branch_parts = parse_version_parts(branch)
+    if not version_parts or not branch_parts or len(version_parts) < len(branch_parts):
+        return False
+    return version_parts[: len(branch_parts)] == branch_parts
+
+
+def simple_version_matches(description: str, version: str) -> Optional[bool]:
     desc = description.lower()
     version = normalize_version(version)
+    if not version:
+        return None
     patterns = [
         re.escape(version),
         re.escape(version).replace("\\.", r"[._-]?"),
     ]
-    return any(re.search(pattern, desc) for pattern in patterns)
+    if any(re.search(pattern, desc) for pattern in patterns):
+        return True
+
+    saw_explicit_constraint = False
+
+    for match in START_BEFORE_RANGE_REGEX.finditer(desc):
+        saw_explicit_constraint = True
+        lower = match.group("lower")
+        upper = match.group("upper")
+        if compare_versions(version, lower) >= 0 and compare_versions(version, upper) < 0:
+            return True
+
+    for match in GENERIC_BOUNDED_RANGE_REGEX.finditer(desc):
+        saw_explicit_constraint = True
+        lower = match.group("lower")
+        upper = match.group("upper")
+        if compare_versions(version, lower) >= 0 and compare_versions(version, upper) <= 0:
+            return True
+
+    for match in BRANCH_BEFORE_REGEX.finditer(desc):
+        saw_explicit_constraint = True
+        branch = match.group("branch")
+        upper = match.group("upper")
+        if version_matches_branch(version, branch):
+            return compare_versions(version, upper) < 0
+
+    for match in GENERIC_UPPER_BOUND_REGEX.finditer(desc):
+        saw_explicit_constraint = True
+        upper = match.group("upper")
+        mode = match.group("mode").lower()
+        if mode in {"through", "up to", "upto"}:
+            if compare_versions(version, upper) <= 0:
+                return True
+        else:
+            if compare_versions(version, upper) < 0:
+                return True
+
+    mentioned_versions = [normalize_version(item) for item in VERSION_TEXT_REGEX.findall(desc)]
+    mentioned_versions = [item for item in mentioned_versions if item]
+    if mentioned_versions and any(hint in desc for hint in EXPLICIT_RANGE_HINTS):
+        highest_mentioned = mentioned_versions[0]
+        for candidate in mentioned_versions[1:]:
+            if compare_versions(candidate, highest_mentioned) > 0:
+                highest_mentioned = candidate
+        if compare_versions(version, highest_mentioned) > 0:
+            return False
+
+    if saw_explicit_constraint:
+        return False
+    return None
 
 
 def call_openai_judge(base_url: str, api_key: str, model: str, component: str, version: str, cve: str, description: str) -> Optional[bool]:
     if not (base_url and api_key and model):
         return None
+    cache_key = (normalize_component_name(component), normalize_version(version), str(cve).strip())
+    if cache_key in LLM_JUDGE_CACHE:
+        return LLM_JUDGE_CACHE[cache_key]
     url = base_url.rstrip("/") + "/chat/completions"
     prompt = (
-        "你是漏洞分析助手。请只回答 JSON，格式为 {\"affected\": true/false, \"reason\": \"...\"}。"
-        f"\n组件名: {component}"
-        f"\n组件版本: {version}"
-        f"\nCVE: {cve}"
-        f"\n描述: {description}"
-        "\n请根据描述判断该版本是否属于受影响范围。若描述不足，请尽量保守判断为 false。"
+        '你是漏洞分析助手。请只回答 JSON，格式为 {"affected": true/false, "is_direct": true/false, "reason": "..."}。\n'
+        f"组件名: {component}\n"
+        f"组件版本: {version}\n"
+        f"CVE: {cve}\n"
+        f"描述: {description}\n"
+        "请判断两个问题：\n"
+        f"1. affected：该版本的 {component} 本身（作为漏洞直接主体）是否受该 CVE 影响？"
+        f"注意：若该 CVE 的受影响软件是使用了 {component} 的上层应用（如 XWiki、Jenkins、OFBiz 等），"
+        f"而非 {component} 库本身，则 affected 应为 false。\n"
+        f"2. is_direct：该 CVE 的漏洞主体是否就是 {component} 本身（而非依赖它的上层应用）？\n"
+        "若描述不足以判断，请保守返回 false。"
     )
+
     payload = {
         "model": model,
         "messages": [
@@ -867,10 +1054,15 @@ def call_openai_judge(base_url: str, api_key: str, model: str, component: str, v
         stripped_content = re.sub(r"^```(?:json)?\s*", "", content.strip(), flags=re.IGNORECASE)
         stripped_content = re.sub(r"\s*```$", "", stripped_content)
         parsed = json.loads(stripped_content)
-        return bool(parsed.get("affected"))
+        # affected 且是直接主体（is_direct），才算命中；is_direct 缺失时保守视为 True（兼容旧格式）
+        is_direct = parsed.get("is_direct", True)
+        result = bool(parsed.get("affected")) and bool(is_direct)
+        LLM_JUDGE_CACHE[cache_key] = result
+        return result
     except Exception as exc:
         details = f" response_text={response_text[:1000]}" if response_text else ""
         LOGGER.warning("LLM 判断失败，已跳过：%s%s", exc, details)
+        LLM_JUDGE_CACHE[cache_key] = None
         return None
 
 
@@ -892,17 +1084,22 @@ def match_cves_for_component(
         software_norm = normalize_component_name(software_name)
         if normalized_component not in software_norm and software_norm not in normalized_component:
             continue
+        if not description_mentions_component(component, description):
+            continue
         candidate_count += 1
-        heuristic_match = simple_version_matches(description, version)
-        llm_match = call_openai_judge(
-            openai_base_url,
-            openai_api_key,
-            openai_model,
-            component,
-            version,
-            cve_id,
-            description,
-        )
+        relevant_description = extract_component_context(component, description)
+        heuristic_match = simple_version_matches(relevant_description, version)
+        llm_match = None
+        if heuristic_match is None:
+            llm_match = call_openai_judge(
+                openai_base_url,
+                openai_api_key,
+                openai_model,
+                component,
+                version,
+                cve_id,
+                relevant_description,
+            )
         if heuristic_match or llm_match is True:
             matched_cves.append(cve_id)
     LOGGER.info("CVE 匹配完成: component=%s version=%s 候选=%s 命中=%s", component, version, candidate_count, len(set(matched_cves)))
@@ -1091,7 +1288,13 @@ def load_nvd_vulnerability_info(cve: str, nvd_output_dir: str) -> Optional[Dict[
     if not matches:
         return None
     payload = safe_read_json(matches[0]) or {}
-    cve_item = payload.get("cve") if isinstance(payload.get("cve"), dict) else payload
+    # NVD API v2.0 格式：顶层是 vulnerabilities 列表，每项含 cve 对象
+    vulnerabilities = payload.get("vulnerabilities") or []
+    if vulnerabilities and isinstance(vulnerabilities[0], dict):
+        cve_item = vulnerabilities[0].get("cve") or {}
+    else:
+        # 兼容旧格式（直接是 cve 对象）
+        cve_item = payload.get("cve") if isinstance(payload.get("cve"), dict) else payload
     if not isinstance(cve_item, dict):
         cve_item = {}
     descriptions = cve_item.get("descriptions") or []
@@ -1107,22 +1310,82 @@ def load_nvd_vulnerability_info(cve: str, nvd_output_dir: str) -> Optional[Dict[
     cvss_score = ""
     for key in ["cvssMetricV31", "cvssMetricV30", "cvssMetricV2"]:
         values = metrics.get(key)
-        if isinstance(values, list) and values:
-            metric = values[0]
-            if isinstance(metric, dict):
-                cvss_data = metric.get("cvssData") or {}
-                base_score = cvss_data.get("baseScore")
-                if base_score is not None:
-                    cvss_score = str(base_score)
-                    break
+        if not isinstance(values, list) or not values:
+            continue
+        # 优先取 type==Primary 或 source==nvd@nist.gov 的官方评分，避免 Secondary 评分被默认取到
+        primary = next(
+            (m for m in values if m.get("type") == "Primary" or m.get("source") == "nvd@nist.gov"),
+            None,
+        )
+        metric = primary if primary else values[0]
+        if isinstance(metric, dict):
+            cvss_data = metric.get("cvssData") or {}
+            base_score = cvss_data.get("baseScore")
+            if base_score is not None:
+                cvss_score = str(base_score)
+                break
+    # 遍历所有 weaknesses 条目，去重后合并，例如 "CWE-502, CWE-918"
     weaknesses = cve_item.get("weaknesses") or []
     vul_type = ""
     if isinstance(weaknesses, list) and weaknesses:
-        first = weaknesses[0]
-        if isinstance(first, dict):
-            descs = first.get("description") or []
-            if isinstance(descs, list) and descs:
-                vul_type = str(descs[0].get("value") or "") if isinstance(descs[0], dict) else str(descs[0])
+        seen_cwes: list = []
+        for w in weaknesses:
+            if isinstance(w, dict):
+                for d in (w.get("description") or []):
+                    val = str(d.get("value") or "") if isinstance(d, dict) else str(d)
+                    if val and val not in seen_cwes:
+                        seen_cwes.append(val)
+        vul_type = ", ".join(seen_cwes)
+    # 从 references 中检测补丁可用性：
+    # 1) NVD 明确打了 "Patch" tag
+    # 2) "Vendor Advisory"（厂商公告）通常意味着已发布修复版本
+    references = cve_item.get("references") or []
+    patch_tag_found = any(
+        "Patch" in (ref.get("tags") or [])
+        for ref in references
+        if isinstance(ref, dict)
+    )
+    vendor_advisory_found = any(
+        "Vendor Advisory" in (ref.get("tags") or [])
+        for ref in references
+        if isinstance(ref, dict)
+    )
+    vul_patch_available = patch_tag_found or vendor_advisory_found
+    # 兜底：vulnStatus=Analyzed/Modified 且发布超过 365 天，视为已有修复
+    if not vul_patch_available:
+        vuln_status = cve_item.get("vulnStatus", "")
+        pub_date_str = cve_item.get("published", "")
+        if pub_date_str and vuln_status in ("Analyzed", "Modified"):
+            try:
+                from datetime import datetime
+                # 截取到秒，忽略毫秒和时区，统一做朴素日期比较
+                pub_plain = pub_date_str.split(".")[0].replace("Z", "").split("+")[0]
+                pub = datetime.strptime(pub_plain, "%Y-%m-%dT%H:%M:%S")
+                if (datetime.now() - pub).days > 365:
+                    vul_patch_available = True
+            except Exception:
+                pass
+    # 从 references 中检测是否存在 PoC/Exploit 相关标签
+    poc_tags = {"Exploit", "Proof of Concept", "Mitigation"}
+    vul_poc_available = any(
+        bool(poc_tags & set(ref.get("tags") or []))
+        for ref in references
+        if isinstance(ref, dict)
+    )
+    # CISA KEV 收录状态
+    kev_catalog = _load_kev_catalog()
+    vul_kev_in_catalog = cve in kev_catalog
+    # CVE 发布年龄（天数）
+    vul_cve_age_days = 0
+    pub_date_str_raw = cve_item.get("published", "")
+    if pub_date_str_raw:
+        try:
+            from datetime import datetime as _dt
+            pub_plain = str(pub_date_str_raw).split(".")[0].replace("Z", "").split("+")[0]
+            pub = _dt.strptime(pub_plain, "%Y-%m-%dT%H:%M:%S")
+            vul_cve_age_days = (_dt.now() - pub).days
+        except Exception:
+            pass
     return {
         "vul_name": cve,
         "vul_id": cve,
@@ -1133,8 +1396,10 @@ def load_nvd_vulnerability_info(cve: str, nvd_output_dir: str) -> Optional[Dict[
         "vul_fix_suggestion": "参考官方补丁、升级版本或规避方案。",
         "vul_reason": description_text,
         "vul_trigger_condition": description_text,
-        "vul_patch_available": False,
-        "vul_poc_available": False,
+        "vul_patch_available": vul_patch_available,
+        "vul_poc_available": vul_poc_available,
+        "vul_kev_in_catalog": vul_kev_in_catalog,
+        "vul_cve_age_days": vul_cve_age_days,
     }
 
 
@@ -1211,6 +1476,8 @@ def build_analysis_tasks(
 ) -> List[AnalysisTask]:
     repo_map = {repo.project: repo for repo in projects}
     tasks: List[AnalysisTask] = []
+    # 按 (project, tag, cve) 去重：同一CVE在同一tag下可能因多个版本文件产生重复行
+    seen: Set[tuple] = set()
     for _, row in result_df.iterrows():
         cves = split_cve_values(row.get("CVE", ""))
         if not cves:
@@ -1227,11 +1494,17 @@ def build_analysis_tasks(
         repo_dir = find_repo_dir_for_project(repo.project, repo.repo)
         docs_dir = resolve_docs_dir(repo_dir)
         for cve in cves:
+            vfind_json = find_vfind_result(project, cve)
             if triggered_cves_by_project is not None:
                 triggered_set = triggered_cves_by_project.get(project)
-                if not triggered_set or cve not in triggered_set:
+                in_triggered = bool(triggered_set and cve in triggered_set)
+                # 不可达 CVE（有 vfind 结果但 sinks=0）也纳入任务，后续打零分而非丢弃
+                if not in_triggered and not vfind_json:
                     continue
-            vfind_json = find_vfind_result(project, cve)
+            dedup_key = (project, tag, cve)
+            if dedup_key in seen:
+                continue
+            seen.add(dedup_key)
             tasks.append(
                 AnalysisTask(
                     project=project,
@@ -1247,8 +1520,78 @@ def build_analysis_tasks(
                     vfind_json_path=str(vfind_json) if vfind_json else None,
                 )
             )
-    LOGGER.info("构建 analysis tasks 完成，共 %s 条", len(tasks))
+    LOGGER.info("构建 analysis tasks 完成，共 %s 条（已按 project+tag+cve 去重）", len(tasks))
     return tasks
+
+
+def _load_kev_catalog() -> Set[str]:
+    """下载并缓存 CISA KEV 目录，返回 CVE ID 集合。失败时返回空集合。"""
+    global _KEV_CATALOG
+    if _KEV_CATALOG is not None:
+        return _KEV_CATALOG
+    local_cache = Path("workflow_output") / "kev_catalog.json"
+    try:
+        if local_cache.is_file():
+            data = safe_read_json(local_cache) or {}
+        else:
+            import urllib.request
+            kev_url = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+            with urllib.request.urlopen(kev_url, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            local_cache.parent.mkdir(parents=True, exist_ok=True)
+            local_cache.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        vulns = data.get("vulnerabilities") or []
+        _KEV_CATALOG = {str(v.get("cveID") or "").strip() for v in vulns if v.get("cveID")}
+        LOGGER.info("CISA KEV 目录已加载，共 %d 条", len(_KEV_CATALOG))
+    except Exception as exc:
+        LOGGER.warning("CISA KEV 加载失败，已禁用 KEV 信号: %s", exc)
+        _KEV_CATALOG = set()
+    return _KEV_CATALOG
+
+
+def _cap_fvuln_by_cvss(payload: dict, cvss_str: str) -> dict:
+    """根据 CVSS 基础分对 f_vuln 施加后置上限，等比压缩子因子，保持内部权重不变。"""
+    try:
+        cvss = float(cvss_str)
+    except (TypeError, ValueError):
+        return payload
+    if cvss >= 9.0:
+        return payload
+    cap = 3.5 if cvss >= 7.0 else (2.5 if cvss >= 4.0 else 1.5)
+    sf = (payload.get("scoring_factors") or {}).get("f_vuln")
+    if not isinstance(sf, dict):
+        return payload
+    current_score = sf.get("score")
+    if current_score is None:
+        return payload
+    try:
+        current_score = float(current_score)
+    except (TypeError, ValueError):
+        return payload
+    if current_score <= cap:
+        return payload
+    ratio = cap / current_score
+    sf["score"] = round(cap, 4)
+    for sub in (sf.get("sub_factors") or {}).values():
+        if isinstance(sub, dict) and sub.get("score") is not None:
+            try:
+                sub["score"] = round(float(sub["score"]) * ratio, 4)
+            except (TypeError, ValueError):
+                pass
+    return payload
+
+
+def _zero_fbusiness(payload: dict) -> dict:
+    """将 f_business 所有子因子及总分强制置零，用于不可达 CVE。"""
+    fb = (payload.get("scoring_factors") or {}).get("f_business")
+    if not isinstance(fb, dict):
+        return payload
+    fb["score"] = 0.0
+    fb["details"] = "漏洞不可达，业务影响为零"
+    for sf in (fb.get("sub_factors") or {}).values():
+        if isinstance(sf, dict):
+            sf["score"] = 0.0
+    return payload
 
 
 def run_eval_pipeline(tasks: List[AnalysisTask], args: argparse.Namespace, debug_dir: Path) -> pd.DataFrame:
@@ -1268,6 +1611,7 @@ def run_eval_pipeline(tasks: List[AnalysisTask], args: argparse.Namespace, debug
             "Component": task.component,
             "Version": task.version,
             "CVE": task.cve,
+            "CVSS": "",
             "Reachable": False,
             "Trigger": "",
             "FilePath": "",
@@ -1298,10 +1642,110 @@ def run_eval_pipeline(tasks: List[AnalysisTask], args: argparse.Namespace, debug
             row["Trigger"] = str(vfind_info["trigger"])
             row["FilePath"] = str(vfind_info["filepath"])
 
+            vulnerability_info = load_nvd_vulnerability_info(task.cve, args.nvd_output_dir)
+            row["CVSS"] = vulnerability_info.get("vul_cvss_score", "") if vulnerability_info else ""
+            vote_n: int = max(1, int(getattr(args, "vote", 1) or 1))
+
             if not vfind_info["reachable"]:
-                row["Status"] = "skipped"
-                row["Error"] = "not reachable according to vfind"
-                (task_dir / "trigger_analysis.json").write_text(json.dumps(vfind_info, ensure_ascii=False, indent=2), encoding="utf-8")
+                (task_dir / "trigger_analysis.json").write_text(
+                    json.dumps(vfind_info, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
+                unreachable_business_factors = {
+                    "project": {
+                        "name": task.project,
+                        "description": "不可达，业务影响为零",
+                        "overall_role": "",
+                        "business_importance_analysis": "",
+                        "data_sensitivity_analysis": "",
+                        "exposure_analysis": "",
+                    },
+                    "component": {
+                        "name": task.component,
+                        "role_in_project": "",
+                        "importance_analysis": "",
+                        "data_sensitivity_analysis": "",
+                        "attack_surface_analysis": "",
+                        "impact_analysis": {
+                            "service_availability": "",
+                            "data_security": "",
+                            "compliance_impact": "",
+                        },
+                    },
+                }
+                # NVD 数据缺失时跳过 LLM，直接产出确定性低危记录，避免回落读本地文件失败
+                if vulnerability_info is None:
+                    LOGGER.info("不可达且无 NVD 数据，使用确定性低危记录: %s %s", task.project, task.cve)
+                    risk_payload = {
+                        "scoring_factors": {
+                            "f_vuln":     {"score": 0.0, "details": "缺少 NVD 数据，无法评估", "sub_factors": {}},
+                            "f_threat":   {"score": 0.0, "details": "缺少 NVD 数据，无法评估", "sub_factors": {}},
+                            "f_business": {"score": 0.0, "details": "漏洞不可达，业务影响为零", "sub_factors": {}},
+                        },
+                        "final_result": {
+                            "risk_level": "非高危",
+                            "assessment_process": "漏洞触发点不可达且无 NVD 数据，三因子均为零，判定为非高危",
+                        },
+                    }
+                    vote_results: List[Dict[str, object]] = [risk_payload]
+                    (task_dir / "risk_assessment.json").write_text(
+                        json.dumps(risk_payload, ensure_ascii=False, indent=2), encoding="utf-8"
+                    )
+                else:
+                    vote_results = []
+                    for vote_idx in range(vote_n):
+                        LOGGER.info("不可达投票 %d/%d: %s %s", vote_idx + 1, vote_n, task.project, task.cve)
+                        try:
+                            risk_result_i = run_risk_assessment(
+                                prompt_filename=args.eval_prompt_filename,
+                                cve_id=task.cve,
+                                prompt_dir=Path(args.eval_prompt_dir),
+                                vulnerability_dir=Path("eval") / "cve_data",
+                                vulnerability_info=vulnerability_info,
+                                business_dir=Path("eval") / "cve_data",
+                                business_factors=unreachable_business_factors,
+                                excel_path=Path(args.eval_excel_path),
+                                reachability={"reachability": "不可达"},
+                                model=model,
+                                api_key=shared_api_key,
+                                api_base=shared_base_url,
+                                verbose=args.eval_risk_verbose,
+                            )
+                            risk_payload_i = _zero_fbusiness(build_risk_payload(risk_result_i))
+                        except Exception as vote_exc:
+                            LOGGER.warning(
+                                "不可达 vote %d/%d failed for %s %s: %s",
+                                vote_idx + 1, vote_n, task.project, task.cve, vote_exc,
+                            )
+                            risk_payload_i = {"error": str(vote_exc)}
+                        vote_results.append(risk_payload_i)
+                        suffix = f"_vote{vote_idx + 1}" if vote_n > 1 else ""
+                        (task_dir / f"risk_assessment{suffix}.json").write_text(
+                            json.dumps(risk_payload_i, ensure_ascii=False, indent=2), encoding="utf-8"
+                        )
+                        LOGGER.info("不可达 vote %d/%d done: %s %s", vote_idx + 1, vote_n, task.project, task.cve)
+                    if vote_n > 1:
+                        (task_dir / "risk_assessment_all_votes.json").write_text(
+                            json.dumps(vote_results, ensure_ascii=False, indent=2), encoding="utf-8"
+                        )
+                    risk_payload = _zero_fbusiness(aggregate_votes(vote_results))
+                final_record = {
+                    "task": task.__dict__,
+                    "vfind": vfind_info,
+                    "module_locator": {},
+                    "component_summary": {},
+                    "risk_assessment": risk_payload,
+                    "vote_n": vote_n,
+                    "vote_results": vote_results,
+                }
+                (task_dir / "final_record.json").write_text(
+                    json.dumps(final_record, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
+                row["RiskLevel"] = risk_payload.get("final_result", {}).get("risk_level", "")
+                row["FVuln"] = risk_payload.get("scoring_factors", {}).get("f_vuln", {}).get("score", "")
+                row["FThreat"] = risk_payload.get("scoring_factors", {}).get("f_threat", {}).get("score", "")
+                row["FBusiness"] = 0.0
+                row["VoteN"] = vote_n
+                row["Status"] = "success"
                 result_rows.append(row)
                 continue
 
@@ -1324,26 +1768,75 @@ def run_eval_pipeline(tasks: List[AnalysisTask], args: argparse.Namespace, debug
             row["LocatedComponent"] = module_locator_result.get("component", "")
 
             located_component = str(module_locator_result.get("component") or "").strip()
+            component_summary = None
             if not located_component:
-                row["Status"] = "skipped"
-                row["Error"] = "module locator returned empty component"
-                result_rows.append(row)
-                continue
-
-            component_summary = run_component_summarizer(
-                component=located_component,
-                docs_dir=Path(task.docs_dir),
-                model=model,
-                api_key=shared_api_key,
-                base_url=shared_base_url,
-                language="zh",
-            )
+                # 回退一：用依赖名（task.component）搜索最近似模块文档
+                fallback_comp = (task.component or "").strip()
+                if fallback_comp:
+                    try:
+                        component_summary = run_component_summarizer(
+                            component=fallback_comp,
+                            docs_dir=Path(task.docs_dir),
+                            model=model,
+                            api_key=shared_api_key,
+                            base_url=shared_base_url,
+                            language="zh",
+                        )
+                        row["LocatedComponent"] = fallback_comp
+                        row["Module"] = "fallback_component"
+                        LOGGER.info("module locator 回退一成功 %s %s，使用依赖名: %s", task.project, task.cve, fallback_comp)
+                    except Exception as _fb1:
+                        LOGGER.info("module locator 回退一失败 %s %s: %s", task.project, task.cve, _fb1)
+                # 回退二：读取 overview.md 构造最小业务上下文
+                if component_summary is None:
+                    _overview = Path(task.docs_dir) / "overview.md"
+                    if _overview.is_file():
+                        try:
+                            _overview_text = _overview.read_text(encoding="utf-8")[:3000]
+                            component_summary = [{
+                                "project": {
+                                    "name": task.project,
+                                    "description": _overview_text,
+                                    "overall_role": "",
+                                    "business_importance_analysis": "",
+                                    "data_sensitivity_analysis": "",
+                                    "exposure_analysis": "",
+                                },
+                                "component": {
+                                    "name": task.component,
+                                    "role_in_project": "",
+                                    "importance_analysis": "（由 overview.md 兜底，无具体模块文档）",
+                                    "data_sensitivity_analysis": "",
+                                    "attack_surface_analysis": "",
+                                    "impact_analysis": {
+                                        "service_availability": "",
+                                        "data_security": "",
+                                        "compliance_impact": "",
+                                    },
+                                },
+                            }]
+                            row["LocatedComponent"] = task.component
+                            row["Module"] = "fallback_overview"
+                            LOGGER.info("module locator 回退二成功 %s %s，使用 overview.md", task.project, task.cve)
+                        except Exception as _fb2:
+                            LOGGER.info("module locator 回退二失败 %s %s: %s", task.project, task.cve, _fb2)
+                if component_summary is None:
+                    row["Status"] = "skipped"
+                    row["Error"] = "module locator returned empty component, all fallbacks failed"
+                    result_rows.append(row)
+                    continue
+            else:
+                component_summary = run_component_summarizer(
+                    component=located_component,
+                    docs_dir=Path(task.docs_dir),
+                    model=model,
+                    api_key=shared_api_key,
+                    base_url=shared_base_url,
+                    language="zh",
+                )
             (task_dir / "component_summary.json").write_text(json.dumps(component_summary, ensure_ascii=False, indent=2), encoding="utf-8")
 
-            vulnerability_info = load_nvd_vulnerability_info(task.cve, args.nvd_output_dir)
-
             # --- vote: run risk assessment vote_n times, save all results ---
-            vote_n: int = max(1, int(getattr(args, "vote", 1) or 1))
             vote_results: List[Dict[str, object]] = []
             business_factors = (
                 component_summary[0]
@@ -1395,6 +1888,9 @@ def run_eval_pipeline(tasks: List[AnalysisTask], args: argparse.Namespace, debug
             # use the first result as the representative value (single-run behaviour unchanged)
             
             risk_payload = aggregate_votes(vote_results)
+            # 施加 CVSS 分段 FVuln 上限，修正系统性虚高
+            _cvss_str = str(vulnerability_info.get("vul_cvss_score", "") if vulnerability_info else "")
+            risk_payload = _cap_fvuln_by_cvss(risk_payload, _cvss_str)
             # -------------------------------------------------------------------
 
             final_record = {

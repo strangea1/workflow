@@ -105,6 +105,14 @@ def cvelist_output_path():
     return CVELIST_DIR / "non_empty_sinks.json"
 
 
+def write_cvelist(items):
+    output_path = cvelist_output_path()
+    output_path.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+    print("LIST:", items)
+    print(f"[INFO] cvelist 已保存: {output_path}")
+    return output_path
+
+
 def run_command(cmd):
     print("[INFO] 执行命令:", " ".join(str(item) for item in cmd))
     completed = subprocess.run([str(item) for item in cmd], check=False)
@@ -187,10 +195,7 @@ def collect_non_empty_sinks(task_items):
                 "output_file": str(path),
             })
 
-    output_path = cvelist_output_path()
-    output_path.write_text(json.dumps(cve_list, ensure_ascii=False, indent=2), encoding="utf-8")
-    print("LIST:", cve_list)
-    print(f"[INFO] cvelist 已保存: {output_path}")
+    write_cvelist(cve_list)
     return cve_list
 
 
@@ -217,6 +222,7 @@ def generate_tasks(result_file=RESULT_FILE, data_file=DATA_FILE):
 
     if not project_to_cves:
         print("[INFO] result.xlsx 中没有可处理的 Project/CVE 数据。")
+        write_cvelist([])
         return []
 
     processed = 0

@@ -131,6 +131,7 @@ def patch_tiktoken() -> None:
 
 
 def run_codewiki(repo_dir: str | Path) -> None:
+    import shutil
     repo_dir = Path(repo_dir)
     print(f"[INFO] Running CodeWiki in {repo_dir} ...")
 
@@ -147,6 +148,13 @@ def run_codewiki(repo_dir: str | Path) -> None:
     try:
         os.chdir(repo_dir)
         print(f"[INFO] Changed directory to: {Path.cwd()}")
+
+        # 删除已有 docs 目录，避免 nohup 环境下 click.confirm 读取 stdin 失败
+        docs_dir = Path.cwd() / "docs"
+        if docs_dir.exists():
+            shutil.rmtree(docs_dir)
+            print(f"[INFO] 已删除旧 docs 目录: {docs_dir}")
+
         sys.argv = ["codewiki", "generate"]
 
         def _safe_exit(code=0):
@@ -166,11 +174,41 @@ def run_codewiki(repo_dir: str | Path) -> None:
         print(f"[INFO] Returned to: {original_dir}")
 
 
+def patch_codewiki_overview_retry(max_retries: int = 1) -> None:
+    """monkey patch CodeWiki 的 call_llm，确保模型输出包含 <OVERVIEW> 标签。
+    当模型未按格式输出时，先重试一次（附加更严格提示），仍缺失则自动包裹标签，
+    避免 CodeWiki 内部 split('<OVERVIEW>')[1] 触发 IndexError 崩溃。
+    """
+    try:
+        import codewiki.src.be.documentation_generator as dg
+    except ImportError:
+        return
+
+    _original_call_llm = dg.call_llm
+
+    def _patched_call_llm(prompt: str, *args, **kwargs) -> str:
+        response = _original_call_llm(prompt, *args, **kwargs)
+        # 只在 prompt 期望 <OVERVIEW> 时才做检查
+        if "<OVERVIEW>" not in response and "OVERVIEW" in prompt.upper():
+            for _ in range(max_retries):
+                stricter = prompt + "\n\n【重要】请严格在回答中包含 <OVERVIEW>...</OVERVIEW> 标签，不要省略。"
+                response = _original_call_llm(stricter, *args, **kwargs)
+                if "<OVERVIEW>" in response:
+                    break
+            # 重试后仍缺失，自动包裹
+            if "<OVERVIEW>" not in response:
+                response = f"<OVERVIEW>\n{response}\n</OVERVIEW>"
+        return response
+
+    dg.call_llm = _patched_call_llm
+
+
 def prepare_and_run_codewiki(repo_url: str, clone_root: str | Path = TARGET_REPO_ROOT, ref: str | None = None) -> Path:
     repo_dir = clone_repo(repo_url, clone_root, ref=ref)
     clean_repo(repo_dir)
     patch_open()
     patch_tiktoken()
+    patch_codewiki_overview_retry(max_retries=1)
     run_codewiki(repo_dir)
     return repo_dir
 

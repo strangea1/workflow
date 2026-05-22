@@ -160,6 +160,9 @@ def build_llm_cli_env(
 ) -> Dict[str, str]:
     """Build env dict for Codex / OpenCode subprocess (VULN_DIR, PROJECT_DIR, RECON_FILE, OUTPUT_PATH, +extra)."""
     env = os.environ.copy()
+    # CI=true / NO_COLOR=1 告诉 opencode/Node.js 不初始化 TTY/TUI，避免 nohup 下 EBADF
+    env.setdefault("CI", "true")
+    env.setdefault("NO_COLOR", "1")
     env["VULN_DIR"] = resolve_path_for_cli_env(vuln_dir or "")
     env["PROJECT_DIR"] = str(project_path)
     env["RECON_FILE"] = resolve_path_for_cli_env(recon_file or "")
@@ -202,11 +205,12 @@ def stream_subprocess_to_log(
                 cwd=str(cwd),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,   # nohup 下继承的 fd 0 状态不可靠，显式给 /dev/null
                 env=env,
                 text=True,
                 bufsize=1,
-                encoding="utf-8",   # 👈 关键
-                errors="ignore"     # 👈 防止崩
+                encoding="utf-8",
+                errors="ignore"
             )
             output_queue: queue.Queue[str] = queue.Queue()
             read_done = threading.Event()

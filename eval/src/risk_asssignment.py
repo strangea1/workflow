@@ -41,7 +41,7 @@ class RiskAssessmentResult(BaseModel):
     f_threat: Factor
     f_business: Factor
     
-    risk_level: str = Field(description="风险等级：高危/中危/低危")
+    risk_level: str = Field(description="风险等级：高危/非高危")
     risk_assessment_process: str = Field(description="风险评估过程详细说明")
 
 
@@ -130,6 +130,9 @@ RISK_ASSESSMENT_HUMAN_PROMPT = """
 是否存在补丁: {vul_patch_available}
 是否存在POC: {vul_poc_available}
 漏洞修复建议: {vul_fix_suggestion}
+
+威胁情报补充（CISA KEV/CVE年龄）:
+{threat_intel_context}
 
 **可达性分析**
 {reachability_info}
@@ -332,6 +335,18 @@ def prepare_assessment_input(
     business_factors: Dict[str, Any],
     parser: PydanticOutputParser,
 ) -> Dict[str, Any]:
+    project = business_factors.get("project") or {}
+    component = business_factors.get("component") or {}
+    impact = component.get("impact_analysis") or {}
+    # 构造威胁情报上下文（整合 CISA KEV、CVE年龄、PoC/补丁）
+    kev_flag = "是（已收录于 CISA KEV，已知被在野利用）" if vulnerability_info.get("vul_kev_in_catalog") else "否"
+    age_days = vulnerability_info.get("vul_cve_age_days", 0) or 0
+    threat_intel_context = (
+        f"CISA KEV 收录状态: {kev_flag}\n"
+        f"CVE 发布年龄: {age_days} 天\n"
+        f"是否存在补丁: {'是' if vulnerability_info.get('vul_patch_available') else '否'}\n"
+        f"是否存在POC/Exploit: {'是' if vulnerability_info.get('vul_poc_available') else '否'}"
+    )
     return {
         "vul_name": vulnerability_info["vul_name"],
         "vul_id": vulnerability_info["vul_id"],
@@ -343,21 +358,22 @@ def prepare_assessment_input(
         "vul_patch_available": "是" if vulnerability_info["vul_patch_available"] else "否",
         "vul_poc_available": "是" if vulnerability_info["vul_poc_available"] else "否",
         "vul_fix_suggestion": vulnerability_info["vul_fix_suggestion"],
+        "threat_intel_context": threat_intel_context,
         "reachability_info": f"可达性状态: {reachability_info['reachability']}",
-        "project_name": business_factors["project"]["name"],
-        "project_overall_role": business_factors["project"]["overall_role"],
-        "project_description": business_factors["project"]["description"],
-        "business_importance_analysis": business_factors["project"]["business_importance_analysis"],
-        "data_sensitivity_analysis": business_factors["project"]["data_sensitivity_analysis"],
-        "exposure_analysis": business_factors["project"]["exposure_analysis"],
-        "component_name": business_factors["component"]["name"],
-        "component_role": business_factors["component"]["role_in_project"],
-        "component_importance": business_factors["component"]["importance_analysis"],
-        "component_data_sensitivity": business_factors["component"]["data_sensitivity_analysis"],
-        "component_attack_surface": business_factors["component"]["attack_surface_analysis"],
-        "service_availability": business_factors["component"]["impact_analysis"]["service_availability"],
-        "data_security": business_factors["component"]["impact_analysis"]["data_security"],
-        "compliance_impact": business_factors["component"]["impact_analysis"]["compliance_impact"],
+        "project_name": project.get("name", ""),
+        "project_overall_role": project.get("overall_role", ""),
+        "project_description": project.get("description", ""),
+        "business_importance_analysis": project.get("business_importance_analysis", ""),
+        "data_sensitivity_analysis": project.get("data_sensitivity_analysis", ""),
+        "exposure_analysis": project.get("exposure_analysis", ""),
+        "component_name": component.get("name", ""),
+        "component_role": component.get("role_in_project", ""),
+        "component_importance": component.get("importance_analysis", ""),
+        "component_data_sensitivity": component.get("data_sensitivity_analysis", ""),
+        "component_attack_surface": component.get("attack_surface_analysis", ""),
+        "service_availability": impact.get("service_availability", ""),
+        "data_security": impact.get("data_security", ""),
+        "compliance_impact": impact.get("compliance_impact", ""),
         "format_instructions": parser.get_format_instructions(),
     }
 
