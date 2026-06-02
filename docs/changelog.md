@@ -4,6 +4,36 @@
 
 ---
 
+## v7（2026-05-27）bug 修复
+
+### workflow_unified.py — 确定性不可达路径 sub_factors 空对象修复
+
+**位置**：`run_eval_pipeline`，`vulnerability_info is None` 分支；`_zero_fbusiness`
+
+**问题**：当 CVE 同时满足"vfind 判定不可达"和"无 NVD 数据"时，走确定性路径直接写入 `risk_assessment.json`，此路径将三个因子的 `sub_factors` 全部写为空对象 `{}`：
+
+```json
+"f_vuln":     {"score": 0.0, "details": "缺少 NVD 数据，无法评估", "sub_factors": {}}
+"f_threat":   {"score": 0.0, "details": "缺少 NVD 数据，无法评估", "sub_factors": {}}
+"f_business": {"score": 0.0, "details": "漏洞不可达，业务影响为零", "sub_factors": {}}
+```
+
+此外 `_zero_fbusiness` 仅对已存在的子因子清零，当 `sub_factors` 本身为空时无法补入标准键，导致 LLM 投票路径若出现空 sub_factors 同样无法修复。
+
+**修复（两处）**：
+
+1. **确定性路径**：将 `sub_factors: {}` 替换为带标准键名的骨架，分值全置 0.0：
+
+   - `f_vuln`：`vuln_type / reachability / required_privilege / exploit_complexity`，label 统一为 `"无法评估（缺少NVD数据）"`（reachability label 为 `"不可达"`）
+   - `f_threat`：`exploit_status / intel_confidence / patch_status / related_threat_activity`，label 同上
+   - `f_business`：`system_criticality / business_impact / impact_scope`，label 为 `"漏洞不可达，业务影响为零"`
+
+2. **`_zero_fbusiness`**：新增模块级常量 `_FBUSINESS_SUB_KEYS`，改用 `setdefault` 确保 `sub_factors` 字典存在后，逐 key 检查：已存在则清零，缺失则补入骨架条目 `{"label": "漏洞不可达，业务影响为零", "score": 0.0}`。
+
+**效果**：所有路径下的 `risk_assessment.json` 三因子均输出完整的标准子因子列表，不再出现 `sub_factors: {}` 的空对象。
+
+---
+
 ## v3（2026-05-14）合并修复
 
 结合两位开发者的修改方案，在 v2 基础上新增以下修复：
@@ -236,6 +266,43 @@ CVSS ≥ 9.0   → 不限制
 3. 两级均失败时才输出 `Status=skipped`，Error 信息更新为 `"module locator returned empty component, all fallbacks failed"`。
 
 **效果（shiro v6 验证）**：skipped 从 12 条降为 0 条，9 条通过 fallback_overview 补齐评级（回退一在 shiro 上因依赖名与模块文档不匹配而失败，回退二全部成功）。
+
+---
+
+### codewiki/cli/config_manager.py — keyring 无 TTY 阻塞修复
+
+**位置**：`_check_keyring_available()`、`load()`、`get_api_key()`；`run_codewiki_pipline.py` 的 `run_codewiki()`
+
+**问题**：eval 阶段会对每个项目调用 CodeWiki 重新生成文档。CodeWiki 在初始化时通过 `CryptFileKeyring` 读取 API Key，该后端需调用 `getpass.getpass()` 弹出密码提示。在 `nohup` 后台运行时：
+- 若终端仍开着（流程运行初期），`getpass` 可访问 `/dev/tty`，成功读取密码并缓存，不报错
+- 若终端已关闭（深夜 eval 阶段），`/dev/tty` 不可访问，进程收到 `SIGTTIN` 挂起或读取空密码导致 `InvalidToken` 异常，触发 `sys.exit(1)` 进而 `SystemExit(1)` 在 workflow 中被重新抛出，整个 eval 阶段崩溃
+
+**修复（两处联动）**：
+
+1. **`config_manager.py` — `_check_keyring_available()`**：在函数入口加 `os.isatty(0)` 检测，无 TTY 时直接返回 `False`，跳过所有 keyring 调用：
+
+   ```python
+   import os
+   if not os.isatty(0):
+       return False
+   ```
+
+2. **`config_manager.py` — `get_api_key()`**：新增 `credentials.json` fallback，当 keyring 不可用时从 `~/.codewiki/credentials.json` 读取明文 API Key：
+
+   ```python
+   if self._api_key is None and CREDENTIALS_FILE.exists():
+       try:
+           creds = json.loads(CREDENTIALS_FILE.read_text(encoding="utf-8"))
+           self._api_key = creds.get("api_key")
+       except Exception:
+           pass
+   ```
+
+3. **`run_codewiki_pipline.py` — `run_codewiki()`**：在调用 CodeWiki 前追加环境变量兜底，强制将 keyring 后端替换为空实现，作为双重保险：
+
+   ```python
+   os.environ.setdefault("PYTHON_KEYRING_BACKEND", "keyring.backends.null.Keyring")
+   ```
 
 ---
 

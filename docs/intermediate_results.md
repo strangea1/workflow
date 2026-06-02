@@ -85,11 +85,12 @@ eval 阶段每次调用 LLM 时，`prepare_assessment_input` 函数将以下两�
 | `vul_risk` | NVD `descriptions` → `lang=en` 的描述文本 |
 | `vul_reason` | 同上（与 `vul_risk` 使用相同文本） |
 | `vul_trigger_condition` | 同上（与 `vul_risk` 使用相同文本） |
-| `vul_patch_available` | NVD `references` 中是否含 `Patch` tag 或 `Vendor Advisory` |
+| `vul_patch_available` | 三层递进判断：① NVD references 含 `Patch` tag；② NVD references 含 `Vendor Advisory` tag；③ `vulnStatus ∈ {Analyzed, Modified}` 且发布超过 365 天 |
 | `vul_poc_available` | NVD `references` 中是否含 `Exploit` tag |
 | `vul_fix_suggestion` | 固定文本："参考官方补丁、升级版本或规避方案。" |
+| `threat_intel_context` | KEV 收录状态 + CVE 年龄 + PoC/补丁状态的拼合字符串，由 `vul_kev_in_catalog`（是否在 CISA KEV 目录中）和 `vul_cve_age_days`（CVE 发布至今天数）生成 |
 
-**保存位置**：`workflow_output/nvd/<CVE>_nvd.json`（NVD 原始响应），解析后的结构体同时写入 `final_record.json` → `vfind` 字段（间接包含）。
+**保存位置**：`workflow_output/nvd/<CVE>_nvd.json`（NVD 原始响应），解析后的结构体同时写入 `final_record.json` → `vfind` 字段（间接包含）。`threat_intel_context` 为运行时拼合字符串，不单独落盘；CISA KEV 本地缓存见 `workflow_output/kev_catalog.json`。
 
 ### 4.2 业务信息（来自 CodeWiki + 组件摘要）
 

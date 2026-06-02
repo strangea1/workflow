@@ -70,6 +70,7 @@ nohup python workflow_unified.py \
 | `--output-excel` | 爬取+匹配结果输出路径，默认 result.xlsx |
 | `--debug-dir` | 中间调试文件输出目录，默认 debug_output |
 | `--top-tags` | 每个项目爬取最近 N 个 tag，默认 10；storm 建议 80 |
+| `--github-token` | 可选 GitHub Token，用于提升 API 额度 |
 | `--run-codewiki` | 启用 CodeWiki 阶段（clone 仓库并生成模块文档） |
 | `--run-vfind` | 启用 vfind 阶段（漏洞触发点定位） |
 | `--run-nvd` | 启用 NVD 抓取阶段 |
@@ -77,6 +78,11 @@ nohup python workflow_unified.py \
 | `--skip-matching` | 跳过爬取/CVE 匹配，直接复用已有 result.xlsx |
 | `--vote N` | 风险评估向 LLM 发起 N 次投票，默认 1；建议关键项用 2 或 3 |
 | `--eval-risk-verbose` | 输出风险评估阶段详细调试信息 |
+| `--nvd-output-dir` | NVD JSON 缓存目录，默认 `workflow_output/nvd` |
+| `--eval-output-dir` | eval 中间文件根目录，默认 `workflow_output/eval_runs` |
+| `--eval-prompt-dir` | 风险评估 prompt 模板目录，默认 `eval/final_result_system_prompt` |
+| `--eval-prompt-filename` | prompt 文件名，默认 `prompt2.md` |
+| `--eval-excel-path` | 风险评估辅助 Excel，默认 `eval/data_sort.xlsx` |
 
 ## 中途中断后导出已完成结果
 

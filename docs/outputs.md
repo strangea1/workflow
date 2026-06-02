@@ -18,6 +18,7 @@
 | Module / LocatedComponent | module_locator 映射结果；`fallback_overview` 表示由 overview.md 兜底，`fallback_component` 表示由依赖名回退 |
 | RiskLevel | 风险等级：**高危 / 非高危 / 未取得共识**（v6 起取消中危/低危） |
 | FVuln / FThreat / FBusiness | 三因子分值；不可达 CVE 的 FBusiness 恒为 0.0；FVuln 受 CVSS 分段上限约束 |
+| OutputDir | 该任务 eval 中间文件目录（`workflow_output/eval_runs/<项目>/<tag>/<CVE>/`） |
 | Status | success / skipped / failed |
 | Error | skipped/failed 原因 |
 | VoteN | 实际投票次数 |

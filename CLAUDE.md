@@ -26,8 +26,8 @@ nohup python workflow_unified.py \
 | [docs/usage.md](docs/usage.md) | 完整运行命令、参数说明、中断恢复脚本 |
 | [docs/outputs.md](docs/outputs.md) | 输出文件路径参考、final_record.json 结构 |
 | [docs/changelog.md](docs/changelog.md) | 历次代码修复记录（v1–v6）与待改进项 |
-| [docs/shiro_v5_analysis.md](docs/shiro_v5_analysis.md) | Shiro v5 运行结果分析（CVSS 提取 + 不可达置零效果） |
-| [docs/shiro_v6_analysis.md](docs/shiro_v6_analysis.md) | Shiro v6 运行结果分析（CISA KEV + FVuln上限 + module回退效果） |
+| [shiro_v5_analysis.md](shiro_v5_analysis.md) | Shiro v5 运行结果分析（CVSS 提取 + 不可达置零效果） |
+| [shiro_v6_analysis.md](shiro_v6_analysis.md) | Shiro v6 运行结果分析（CISA KEV + FVuln上限 + module回退效果） |
 
 ## 主要入口文件
 

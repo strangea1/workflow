@@ -137,6 +137,8 @@ def run_codewiki(repo_dir: str | Path) -> None:
 
     # 设置环境变量（避免编码问题）
     os.environ["PYTHONUTF8"] = "1"
+    # 禁用 CryptFileKeyring，避免无 TTY 环境下触发 getpass 阻塞
+    os.environ.setdefault("PYTHON_KEYRING_BACKEND", "keyring.backends.null.Keyring")
 
     from codewiki.cli.main import cli
 
@@ -150,10 +152,19 @@ def run_codewiki(repo_dir: str | Path) -> None:
         print(f"[INFO] Changed directory to: {Path.cwd()}")
 
         # 删除已有 docs 目录，避免 nohup 环境下 click.confirm 读取 stdin 失败
+        # 保留 first_module_tree.json（预生成的模块树，跳过 clustering）
         docs_dir = Path.cwd() / "docs"
+        saved_first_module_tree = None
         if docs_dir.exists():
+            first_tree_path = docs_dir / "first_module_tree.json"
+            if first_tree_path.exists():
+                saved_first_module_tree = first_tree_path.read_text(encoding="utf-8")
             shutil.rmtree(docs_dir)
             print(f"[INFO] 已删除旧 docs 目录: {docs_dir}")
+        if saved_first_module_tree is not None:
+            docs_dir.mkdir(parents=True, exist_ok=True)
+            (docs_dir / "first_module_tree.json").write_text(saved_first_module_tree, encoding="utf-8")
+            print(f"[INFO] 已恢复 first_module_tree.json 到 {docs_dir}")
 
         sys.argv = ["codewiki", "generate"]
 

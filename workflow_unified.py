@@ -1581,16 +1581,23 @@ def _cap_fvuln_by_cvss(payload: dict, cvss_str: str) -> dict:
     return payload
 
 
+_FBUSINESS_SUB_KEYS = ("system_criticality", "business_impact", "impact_scope")
+
+
 def _zero_fbusiness(payload: dict) -> dict:
-    """将 f_business 所有子因子及总分强制置零，用于不可达 CVE。"""
+    """将 f_business 所有子因子及总分强制置零，用于不可达 CVE。
+    若 sub_factors 缺失或不完整，补入标准三子因子骨架后再清零。"""
     fb = (payload.get("scoring_factors") or {}).get("f_business")
     if not isinstance(fb, dict):
         return payload
     fb["score"] = 0.0
     fb["details"] = "漏洞不可达，业务影响为零"
-    for sf in (fb.get("sub_factors") or {}).values():
-        if isinstance(sf, dict):
-            sf["score"] = 0.0
+    subs = fb.setdefault("sub_factors", {})
+    for key in _FBUSINESS_SUB_KEYS:
+        if key in subs and isinstance(subs[key], dict):
+            subs[key]["score"] = 0.0
+        else:
+            subs[key] = {"label": "漏洞不可达，业务影响为零", "score": 0.0}
     return payload
 
 
@@ -1675,11 +1682,38 @@ def run_eval_pipeline(tasks: List[AnalysisTask], args: argparse.Namespace, debug
                 # NVD 数据缺失时跳过 LLM，直接产出确定性低危记录，避免回落读本地文件失败
                 if vulnerability_info is None:
                     LOGGER.info("不可达且无 NVD 数据，使用确定性低危记录: %s %s", task.project, task.cve)
+                    _no_nvd_label = "无法评估（缺少NVD数据）"
                     risk_payload = {
                         "scoring_factors": {
-                            "f_vuln":     {"score": 0.0, "details": "缺少 NVD 数据，无法评估", "sub_factors": {}},
-                            "f_threat":   {"score": 0.0, "details": "缺少 NVD 数据，无法评估", "sub_factors": {}},
-                            "f_business": {"score": 0.0, "details": "漏洞不可达，业务影响为零", "sub_factors": {}},
+                            "f_vuln": {
+                                "score": 0.0,
+                                "details": "缺少 NVD 数据，无法评估",
+                                "sub_factors": {
+                                    "vuln_type":          {"label": _no_nvd_label, "score": 0.0},
+                                    "reachability":       {"label": "不可达",       "score": 0.0},
+                                    "required_privilege": {"label": _no_nvd_label, "score": 0.0},
+                                    "exploit_complexity": {"label": _no_nvd_label, "score": 0.0},
+                                },
+                            },
+                            "f_threat": {
+                                "score": 0.0,
+                                "details": "缺少 NVD 数据，无法评估",
+                                "sub_factors": {
+                                    "exploit_status":          {"label": _no_nvd_label, "score": 0.0},
+                                    "intel_confidence":        {"label": _no_nvd_label, "score": 0.0},
+                                    "patch_status":            {"label": _no_nvd_label, "score": 0.0},
+                                    "related_threat_activity": {"label": _no_nvd_label, "score": 0.0},
+                                },
+                            },
+                            "f_business": {
+                                "score": 0.0,
+                                "details": "漏洞不可达，业务影响为零",
+                                "sub_factors": {
+                                    "system_criticality": {"label": "漏洞不可达，业务影响为零", "score": 0.0},
+                                    "business_impact":    {"label": "漏洞不可达，业务影响为零", "score": 0.0},
+                                    "impact_scope":       {"label": "漏洞不可达，业务影响为零", "score": 0.0},
+                                },
+                            },
                         },
                         "final_result": {
                             "risk_level": "非高危",
