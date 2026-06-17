@@ -1169,12 +1169,41 @@ def ensure_dependencies() -> None:
         raise RuntimeError(f"缺少依赖，请先安装: pip install {' '.join(missing)}")
 
 
+def _codewiki_docs_exist(repo_url: str) -> bool:
+    """检查 CodeWiki 模块文档是否已存在（排除 module_tree.json 等元数据文件）。
+    仅当 docs 目录中存在至少一个 .md 模块文档时才视为已存在。"""
+    from run_codewiki_pipline import sanitize_repo_name, TARGET_REPO_ROOT
+    repo_name = sanitize_repo_name(repo_url)
+    docs_dir = TARGET_REPO_ROOT / repo_name / "docs"
+    if not docs_dir.exists():
+        return False
+    md_files = [f for f in docs_dir.glob("*.md") if f.name not in ("module_tree.json", "first_module_tree.json")]
+    return len(md_files) > 0
+
+
 def run_codewiki_for_projects(projects: List[RepoInfo], debug_dir: Path, selected_tags: Optional[Dict[str, str]] = None) -> List[Dict[str, str]]:
     codewiki_rows: List[Dict[str, str]] = []
     for repo in projects:
         if selected_tags is not None and repo.project not in selected_tags:
             continue
         ref = selected_tags.get(repo.project) if selected_tags is not None else None
+
+        # 保护已有 docs：跳过已成功生成文档的项目
+        if _codewiki_docs_exist(repo.url):
+            LOGGER.info("CodeWiki 已有文档，跳过: %s", repo.project)
+            from run_codewiki_pipline import sanitize_repo_name, TARGET_REPO_ROOT
+            repo_dir = TARGET_REPO_ROOT / sanitize_repo_name(repo.url)
+            codewiki_rows.append(
+                {
+                    "Project": repo.project,
+                    "RepoURL": repo.url,
+                    "Tag": ref or "",
+                    "RepoDir": str(repo_dir),
+                    "Status": "skipped (docs exist)",
+                }
+            )
+            continue
+
         try:
             LOGGER.info("开始执行 CodeWiki: %s", repo.project)
             repo_dir = prepare_and_run_codewiki(repo.url, ref=ref)
@@ -1210,15 +1239,91 @@ def run_post_processing_pipeline(args: argparse.Namespace, debug_dir: Path) -> L
         write_debug_dataframe(pd.DataFrame(cve_list), debug_dir / "vfind_cvelist.xlsx", "vfind 输出 cvelist")
 
     if args.run_nvd:
-        if not cve_list:
+        # 如果vfind没有生成cve_list（或cve_list为空），则直接从result.xlsx生成NVD抓取列表
+        # 确保所有CVE都能被抓取NVD信息，而不仅仅是可达的CVE
+        nvd_cve_list = cve_list
+        if not nvd_cve_list:
+            LOGGER.info("vfind cve_list 为空，直接从 result.xlsx 生成 NVD 抓取列表")
+            nvd_cve_list = generate_nvd_cve_list_from_result(args.output_excel, debug_dir)
+
+        if not nvd_cve_list:
             LOGGER.warning("run-nvd 已启用，但没有可用 cvelist，跳过 NVD 抓取")
             append_debug_log(debug_dir, "WARNING: run-nvd enabled but cvelist is empty")
             return cve_list
-        nvd_result = fetch_and_save_cve_list(cve_list, args.nvd_output_dir)
+
+        nvd_result = fetch_and_save_cve_list(nvd_cve_list, args.nvd_output_dir)
         write_debug_dataframe(pd.DataFrame(nvd_result.get("results", [])), debug_dir / "nvd_results.xlsx", "NVD 抓取结果")
         write_debug_dataframe(pd.DataFrame(nvd_result.get("failed", [])), debug_dir / "nvd_failed.xlsx", "NVD 抓取失败结果")
         append_debug_log(debug_dir, f"NVD summary written to {nvd_result.get('summary_path', '')}")
     return cve_list
+
+
+def generate_nvd_cve_list_from_result(result_file: str, debug_dir: Path) -> List[Dict[str, str]]:
+    """直接从result.xlsx生成NVD抓取列表，确保所有CVE都被包含"""
+    import pandas as pd
+    from pathlib import Path
+
+    result_path = Path(result_file)
+    if not result_path.exists():
+        LOGGER.warning("result.xlsx 不存在: %s", result_path)
+        return []
+
+    result_df = pd.read_excel(result_path)
+    if "CVE" not in result_df.columns or "Project" not in result_df.columns:
+        LOGGER.warning("result.xlsx 缺少必要的列 (CVE, Project)")
+        return []
+
+    # 从DATA.xlsx构建CVE索引
+    data_path = Path("DATA.xlsx")
+    if not data_path.exists():
+        LOGGER.warning("DATA.xlsx 不存在")
+        return []
+
+    data_df = pd.read_excel(data_path)
+    if "CVE编号" not in data_df.columns:
+        LOGGER.warning("DATA.xlsx 缺少 CVE编号 列")
+        return []
+
+    data_index = {}
+    for _, row in data_df.iterrows():
+        cve = str(row.get("CVE编号", "")).strip()
+        if cve and cve not in data_index:
+            data_index[cve] = row
+
+    # 生成NVD抓取列表
+    nvd_cve_list = []
+    seen_cves = set()
+
+    for _, row in result_df.iterrows():
+        project = str(row.get("Project", "")).strip()
+        cve_raw = str(row.get("CVE", "")).strip()
+
+        if not project or not cve_raw or cve_raw == "nan":
+            continue
+
+        # 处理多个CVE的情况（逗号分隔）
+        cves = [c.strip() for c in cve_raw.split(",") if c.strip()]
+
+        for cve in cves:
+            if cve in seen_cves:
+                continue
+            seen_cves.add(cve)
+
+            # 检查CVE是否在DATA.xlsx中
+            if cve not in data_index:
+                LOGGER.debug("CVE %s 不在DATA.xlsx中，跳过", cve)
+                continue
+
+            nvd_cve_list.append({
+                "repo_name": project,
+                "cve_id": cve,
+                "output_file": "",  # 不需要vfind输出文件
+            })
+
+    LOGGER.info("从 result.xlsx 生成 NVD 抓取列表: %d 个CVE", len(nvd_cve_list))
+    write_debug_dataframe(pd.DataFrame(nvd_cve_list), debug_dir / "nvd_cvelist_from_result.xlsx", "NVD 抓取列表（来自result.xlsx）")
+
+    return nvd_cve_list
 
 
 def safe_read_json(path: Path) -> Optional[Dict[str, object]]:

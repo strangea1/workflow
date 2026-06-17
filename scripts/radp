@@ -1,0 +1,5 @@
+#!/bin/bash
+# RADP快捷命令
+# 用法: radp [选项]
+
+bash /home/hqs/eva_pro_lqs/lqs/workflow/scripts/package_risk_dataset.sh "$@"
